@@ -20,14 +20,38 @@
 
 A modern React application that converts Markdown documents to Word (.docx) format with rich formatting support.
 
+<div align="center">
+  <img src="images/preview.png" alt="Markdown to Word Converter Preview" width="800" />
+  <br/>
+  <em>Application Interface Preview</em>
+</div>
+
 ### Features
 
-- **Markdown Support**: Full Markdown syntax including headers, lists, code blocks, tables, and more
-- **Math Expressions**: LaTeX math formula support using KaTeX
-- **Mermaid Diagrams**: Render and convert Mermaid diagrams to images
-- **Code Highlighting**: Syntax highlighting for code blocks
-- **Multiple Export Formats**: Export to Word (.docx), PDF, and HTML
-- **Real-time Preview**: Live preview of the converted document
+<div align="center">
+  <table>
+    <tr>
+      <td align="center">📝 <strong>Markdown Support</strong></td>
+      <td align="center">🧮 <strong>Math Expressions</strong></td>
+      <td align="center">📊 <strong>Mermaid Diagrams</strong></td>
+    </tr>
+    <tr>
+      <td align="center">Full Markdown syntax including headers, lists, code blocks, tables, and more</td>
+      <td align="center">LaTeX math formula support using KaTeX</td>
+      <td align="center">Render and convert Mermaid diagrams to images</td>
+    </tr>
+    <tr>
+      <td align="center">💻 <strong>Code Highlighting</strong></td>
+      <td align="center">📤 <strong>Export Formats</strong></td>
+      <td align="center">👁️ <strong>Real-time Preview</strong></td>
+    </tr>
+    <tr>
+      <td align="center">Syntax highlighting for code blocks</td>
+      <td align="center">Export to Word (.docx), PDF, and HTML</td>
+      <td align="center">Live preview of the converted document</td>
+    </tr>
+  </table>
+</div>
 
 ### Tech Stack
 
@@ -120,14 +144,38 @@ This project is licensed under the MIT License.
 
 一个现代化的React应用程序，可将Markdown文档转换为Word (.docx) 格式，支持丰富的格式化功能。
 
+<div align="center">
+  <img src="images/preview.png" alt="Markdown转Word工具预览" width="800" />
+  <br/>
+  <em>应用界面预览</em>
+</div>
+
 ### 功能特性
 
-- **Markdown支持**: 完整的Markdown语法，包括标题、列表、代码块、表格等
-- **数学公式**: 使用KaTeX支持LaTeX数学公式
-- **Mermaid图表**: 渲染并转换Mermaid图表为图像
-- **代码高亮**: 代码块的语法高亮显示
-- **多种导出格式**: 支持导出为Word (.docx)、PDF和HTML
-- **实时预览**: 转换文档的实时预览功能
+<div align="center">
+  <table>
+    <tr>
+      <td align="center">📝 <strong>Markdown支持</strong></td>
+      <td align="center">🧮 <strong>数学公式</strong></td>
+      <td align="center">📊 <strong>Mermaid图表</strong></td>
+    </tr>
+    <tr>
+      <td align="center">完整的Markdown语法，包括标题、列表、代码块、表格等</td>
+      <td align="center">使用KaTeX支持LaTeX数学公式</td>
+      <td align="center">渲染并转换Mermaid图表为图像</td>
+    </tr>
+    <tr>
+      <td align="center">💻 <strong>代码高亮</strong></td>
+      <td align="center">📤 <strong>导出格式</strong></td>
+      <td align="center">👁️ <strong>实时预览</strong></td>
+    </tr>
+    <tr>
+      <td align="center">代码块的语法高亮显示</td>
+      <td align="center">支持导出为Word (.docx)、PDF和HTML</td>
+      <td align="center">转换文档的实时预览功能</td>
+    </tr>
+  </table>
+</div>
 
 ### 技术栈
 
