@@ -1,0 +1,5 @@
+{
+  "name": "Markdown2Word",
+  "description": "专业的 Markdown 转文档工具。支持将 DeepSeek、ChatGPT 等 AI 生成的内容一键转换为 Word (docx) 格式。",
+  "requestFramePermissions": []
+}
