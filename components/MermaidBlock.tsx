@@ -7,11 +7,34 @@ interface MermaidBlockProps {
   theme: string;
 }
 
+// Global initialization to avoid repeated calls
+const initMermaid = (theme: string) => {
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: theme as any,
+    securityLevel: 'loose',
+    fontFamily: 'sans-serif',
+    // suppressErrorRendering removed to fix TS error
+  });
+};
+
 const MermaidBlock: React.FC<MermaidBlockProps> = ({ chart, theme }) => {
   const { addLoading, removeLoading } = useLoading();
   const [svg, setSvg] = useState('');
   const [error, setError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const currentThemeRef = useRef(theme);
+
+  useEffect(() => {
+    // Only re-init if theme changes
+    if (currentThemeRef.current !== theme) {
+       initMermaid(theme);
+       currentThemeRef.current = theme;
+    } else if (!svg) {
+        // Init on first load if needed
+        initMermaid(theme);
+    }
+  }, [theme, svg]);
 
   useEffect(() => {
     let isMounted = true;
@@ -26,15 +49,8 @@ const MermaidBlock: React.FC<MermaidBlockProps> = ({ chart, theme }) => {
       try {
         if (isMounted) setError(null);
 
-        mermaid.initialize({
-            startOnLoad: false,
-            theme: theme,
-            securityLevel: 'loose',
-            fontFamily: 'sans-serif',
-            suppressErrorRendering: true,
-        });
-
         const id = `mermaid-${Math.random().toString(36).substr(2, 9)}`;
+        // Use mermaid.render which is async
         const { svg: svgContent } = await mermaid.render(id, chart);
         
         if (isMounted) {

@@ -1,9 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { exportToDocx } from '../services/exportService';
 import { FileWordIcon, LoadingSpinner } from './Icon';
+// @ts-ignore
+import html2pdf from 'html2pdf.js';
 
 export type ChartTheme = 'default' | 'neutral' | 'forest' | 'base';
-export type MathMode = 'native' | 'image';
+export type MathMode = 'editable' | 'image';
 
 interface ExportButtonsProps {
   markdown: string;
@@ -17,7 +19,7 @@ const ExportButtons: React.FC<ExportButtonsProps> = ({ markdown, disabled, chart
   const [isExporting, setIsExporting] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
-  const [mathMode, setMathMode] = useState<MathMode>('native');
+  const [mathMode, setMathMode] = useState<MathMode>('editable'); // Restore Math Mode state
   const settingsRef = useRef<HTMLDivElement>(null);
   const exportMenuRef = useRef<HTMLDivElement>(null);
 
@@ -44,23 +46,23 @@ const ExportButtons: React.FC<ExportButtonsProps> = ({ markdown, disabled, chart
       await new Promise(resolve => setTimeout(resolve, 100)); 
       await exportToDocx(markdown, `document-${timestamp}`, {
           chartTheme,
-          mathMode
+          mathMode // Pass the user selection
       });
     } catch (e) {
       console.error("Export failed", e);
-      alert("导出失败，请检查网络连接或内容格式");
+      alert("导出失败，请检查内容格式");
     } finally {
       setIsExporting(false);
     }
   };
 
   /**
-   * High quality PDF export using Browser Native Print inside an Iframe.
-   * This preserves vector fonts (KaTeX) and text selection.
+   * Direct PDF Export using html2pdf.js
+   * Bypasses browser print dialog and downloads file directly.
    */
-  const handlePrintPdf = async () => {
-      const originalElement = document.getElementById(previewId);
-      if (!originalElement) {
+  const handleExportPdf = async () => {
+      const element = document.getElementById(previewId);
+      if (!element) {
           alert("无法找到预览内容");
           return;
       }
@@ -68,90 +70,31 @@ const ExportButtons: React.FC<ExportButtonsProps> = ({ markdown, disabled, chart
       setIsExporting(true);
       setShowExportMenu(false);
 
+      // Give UI a moment to update state
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      const opt = {
+        margin:       [15, 15, 15, 15], // top, left, bottom, right in mm
+        filename:     `markdown2word-${new Date().toISOString().slice(0, 10)}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { 
+            scale: 2, // 2x scale for Retina-like sharpness
+            useCORS: true, 
+            letterRendering: true,
+            scrollY: 0,
+        },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        // 'avoid-all' tries to avoid breaking images/containers across pages
+        pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
+      };
+
       try {
-          // 1. Create invisible iframe
-          const iframe = document.createElement('iframe');
-          iframe.style.position = 'fixed';
-          iframe.style.right = '0';
-          iframe.style.bottom = '0';
-          iframe.style.width = '0';
-          iframe.style.height = '0';
-          iframe.style.border = '0';
-          document.body.appendChild(iframe);
-
-          const doc = iframe.contentWindow?.document;
-          if (!doc) {
-              throw new Error("Cannot access iframe document");
-          }
-
-          // 2. Gather Styles
-          // We need Tailwind (from script in index.html) and KaTeX CSS (from link in index.html)
-          const links = document.querySelectorAll('link[rel="stylesheet"]');
-          let styleTags = '';
-          links.forEach(link => {
-              styleTags += link.outerHTML;
-          });
-          
-          // Re-include Tailwind Script to re-process classes in the iframe
-          const tailwindScript = '<script src="https://cdn.tailwindcss.com"></script>';
-
-          // 3. Prepare Content
-          // Use a print-optimized wrapper
-          const contentHtml = originalElement.innerHTML;
-
-          doc.open();
-          doc.write(`
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>Document Export</title>
-                ${styleTags}
-                ${tailwindScript}
-                <style>
-                    body { 
-                        margin: 0; 
-                        padding: 0; 
-                        background: white; 
-                    }
-                    /* Container styles matching the preview but optimized for A4 */
-                    .print-container {
-                        max-width: 210mm;
-                        margin: 0 auto;
-                        padding: 20mm;
-                    }
-                    /* Print specific adjustments */
-                    @media print {
-                        @page { margin: 0; }
-                        body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="print-container prose max-w-none text-slate-800 leading-7">
-                    ${contentHtml}
-                </div>
-                <script>
-                    // Wait for Tailwind and images to load
-                    window.onload = function() {
-                        // Small buffer for Tailwind to parse classes
-                        setTimeout(function() {
-                            window.print();
-                            // Optional: Removing iframe after print might be tricky as print is blocking/non-blocking depending on browser
-                            // We usually leave it or remove it next time
-                        }, 800);
-                    };
-                </script>
-            </body>
-            </html>
-          `);
-          doc.close();
-
+          await html2pdf().set(opt).from(element).save();
       } catch (e) {
-          console.error("Print PDF failed", e);
-          alert("启动打印服务失败，请重试");
+          console.error("PDF Export failed", e);
+          alert("PDF 导出失败，请重试");
       } finally {
-          // We stop the spinner quickly, as the browser print dialog will take over
-          setTimeout(() => setIsExporting(false), 1000);
+          setIsExporting(false);
       }
   };
 
@@ -176,15 +119,24 @@ const ExportButtons: React.FC<ExportButtonsProps> = ({ markdown, disabled, chart
                 <h3 className="text-sm font-bold text-slate-800 mb-3">导出设置</h3>
                 
                 <div className="mb-4">
-                    <label className="block text-xs font-medium text-slate-500 mb-1">公式格式 (仅 Word)</label>
-                    <select 
-                        value={mathMode} 
-                        onChange={(e) => setMathMode(e.target.value as MathMode)}
-                        className="w-full text-sm border-slate-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 p-1.5 border bg-slate-50"
-                    >
-                        <option value="native">原生公式 (可编辑)</option>
-                        <option value="image">图片公式 (更精准)</option>
-                    </select>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">Word 公式格式</label>
+                    <div className="flex bg-slate-100 p-1 rounded-md">
+                        <button 
+                            onClick={() => setMathMode('editable')}
+                            className={`flex-1 py-1 text-xs rounded transition ${mathMode === 'editable' ? 'bg-white shadow text-indigo-600 font-medium' : 'text-slate-500'}`}
+                        >
+                            可编辑
+                        </button>
+                        <button 
+                            onClick={() => setMathMode('image')}
+                            className={`flex-1 py-1 text-xs rounded transition ${mathMode === 'image' ? 'bg-white shadow text-indigo-600 font-medium' : 'text-slate-500'}`}
+                        >
+                            高清图片
+                        </button>
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-1">
+                        {mathMode === 'editable' ? '使用 Word 原生公式，可修改但可能存在少许兼容问题' : '转换为图片插入，显示完美但不可编辑'}
+                    </p>
                 </div>
 
                 <div className="mb-4">
@@ -243,7 +195,7 @@ const ExportButtons: React.FC<ExportButtonsProps> = ({ markdown, disabled, chart
                     导出 Word
                 </button>
                 <button 
-                    onClick={handlePrintPdf}
+                    onClick={handleExportPdf}
                     className="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 hover:text-indigo-600 flex items-center gap-2"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

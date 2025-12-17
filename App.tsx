@@ -293,12 +293,6 @@ function App() {
           <div className={`flex-1 flex flex-col border-r border-slate-200 bg-white ${activeTab === 'preview' ? 'hidden md:flex' : 'flex'}`}>
             <div className="h-12 px-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center shrink-0">
               <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Markdown 编辑区</span>
-              <button 
-                onClick={handlePaste}
-                className="text-xs text-indigo-600 hover:text-indigo-800 font-medium px-2 py-1 rounded hover:bg-indigo-50 transition"
-              >
-                粘贴
-              </button>
             </div>
             <textarea
               value={markdown}
@@ -310,8 +304,8 @@ function App() {
           </div>
 
           {/* Right: Preview */}
-          <div className={`flex-1 flex flex-col bg-slate-50/50 relative ${activeTab === 'editor' ? 'hidden md:flex' : 'flex'}`}>
-            <div className="h-12 px-4 bg-slate-100 border-b border-slate-200 flex justify-between items-center shrink-0">
+          <div className={`flex-1 flex flex-col bg-white relative ${activeTab === 'editor' ? 'hidden md:flex' : 'flex'}`}>
+            <div className="h-12 px-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center shrink-0">
               <div className="flex items-center gap-2">
                   <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">实时文档预览</span>
                   {isLoading && (
@@ -324,7 +318,7 @@ function App() {
               <span className="text-xs text-slate-400 hidden lg:inline">右键公式或图表可下载 PNG</span>
             </div>
             
-            <div className="flex-1 overflow-y-auto p-4 md:p-8 relative" ref={previewRef}>
+            <div className="flex-1 overflow-y-auto relative bg-white" ref={previewRef}>
               
               {/* Global Loading Overlay */}
               {isLoading && (
@@ -336,82 +330,81 @@ function App() {
                   </div>
               )}
 
-              <div id="preview-content" className="bg-white shadow-sm border border-slate-200 min-h-[calc(100%-2rem)] p-6 md:p-10 max-w-[210mm] mx-auto rounded-lg">
+              {/* Updated Layout: Full width/height, removed margins/shadows to match Left Editor */}
+              <div id="preview-content" className="min-h-full p-8 max-w-none mx-auto text-slate-800 leading-7">
                 {debouncedMarkdown ? (
-                  <div className="text-slate-800 leading-7">
-                    <ReactMarkdown 
-                      remarkPlugins={[remarkGfm, remarkMath]} 
-                      rehypePlugins={[rehypeKatex]}
-                      components={{
-                          h1: ({node, ...props}) => <h1 className="text-3xl font-bold text-slate-900 border-b border-slate-200 pb-2 mb-6 mt-2" {...props} />,
-                          h2: ({node, ...props}) => <h2 className="text-2xl font-bold text-slate-900 mt-8 mb-4" {...props} />,
-                          h3: ({node, ...props}) => <h3 className="text-xl font-bold text-slate-800 mt-6 mb-3" {...props} />,
-                          h4: ({node, ...props}) => <h4 className="text-lg font-bold text-slate-800 mt-5 mb-2" {...props} />,
-                          h5: ({node, ...props}) => <h5 className="text-base font-bold text-slate-800 mt-4 mb-2" {...props} />,
-                          h6: ({node, ...props}) => <h6 className="text-sm font-bold text-slate-800 uppercase tracking-wide mt-4 mb-2" {...props} />,
-                          p: ({node, ...props}) => <p className="my-3 text-justify" {...props} />,
-                          strong: ({node, ...props}) => <strong className="font-extrabold text-slate-900" {...props} />,
-                          ul: ({node, ...props}) => <ul className="list-disc pl-6 my-4 space-y-1" {...props} />,
-                          ol: ({node, ...props}) => <ol className="list-decimal pl-6 my-4 space-y-1" {...props} />,
-                          li: ({node, ...props}) => <li className="pl-1" {...props} />,
-                          table: ({node, ...props}) => <div className="my-6 overflow-x-auto"><table className="min-w-full border-collapse border border-slate-300 text-sm" {...props} /></div>,
-                          thead: ({node, ...props}) => <thead className="bg-slate-100" {...props} />,
-                          tbody: ({node, ...props}) => <tbody className="bg-white" {...props} />,
-                          tr: ({node, ...props}) => <tr className="border-b border-slate-200 hover:bg-slate-50" {...props} />,
-                          th: ({node, ...props}) => <th className="border border-slate-300 px-4 py-2 text-left font-bold text-slate-900" {...props} />,
-                          td: ({node, ...props}) => <td className="border border-slate-300 px-4 py-2 text-slate-700 align-top" {...props} />,
-                          code(props) {
-                              const {children, className, node, ...rest} = props;
-                              const match = /language-(\w+)/.exec(className || '');
-                              const language = match ? match[1] : '';
-                              // @ts-ignore
-                              const isInline = props.inline;
+                  <ReactMarkdown 
+                    remarkPlugins={[remarkGfm, remarkMath]} 
+                    rehypePlugins={[rehypeKatex]}
+                    components={{
+                        h1: ({node, ...props}) => <h1 className="text-3xl font-bold text-slate-900 border-b border-slate-200 pb-2 mb-6 mt-2" {...props} />,
+                        h2: ({node, ...props}) => <h2 className="text-2xl font-bold text-slate-900 mt-8 mb-4" {...props} />,
+                        h3: ({node, ...props}) => <h3 className="text-xl font-bold text-slate-800 mt-6 mb-3" {...props} />,
+                        h4: ({node, ...props}) => <h4 className="text-lg font-bold text-slate-800 mt-5 mb-2" {...props} />,
+                        h5: ({node, ...props}) => <h5 className="text-base font-bold text-slate-800 mt-4 mb-2" {...props} />,
+                        h6: ({node, ...props}) => <h6 className="text-sm font-bold text-slate-800 uppercase tracking-wide mt-4 mb-2" {...props} />,
+                        p: ({node, ...props}) => <p className="my-3 text-justify" {...props} />,
+                        strong: ({node, ...props}) => <strong className="font-extrabold text-slate-900" {...props} />,
+                        ul: ({node, ...props}) => <ul className="list-disc pl-6 my-4 space-y-1" {...props} />,
+                        ol: ({node, ...props}) => <ol className="list-decimal pl-6 my-4 space-y-1" {...props} />,
+                        li: ({node, ...props}) => <li className="pl-1" {...props} />,
+                        table: ({node, ...props}) => <div className="my-6 overflow-x-auto"><table className="min-w-full border-collapse border border-slate-300 text-sm" {...props} /></div>,
+                        thead: ({node, ...props}) => <thead className="bg-slate-100" {...props} />,
+                        tbody: ({node, ...props}) => <tbody className="bg-white" {...props} />,
+                        tr: ({node, ...props}) => <tr className="border-b border-slate-200 hover:bg-slate-50" {...props} />,
+                        th: ({node, ...props}) => <th className="border border-slate-300 px-4 py-2 text-left font-bold text-slate-900" {...props} />,
+                        td: ({node, ...props}) => <td className="border border-slate-300 px-4 py-2 text-slate-700 align-top" {...props} />,
+                        code(props) {
+                            const {children, className, node, ref, ...rest} = props; // DESTUCTURE REF to prevent TS Error
+                            const match = /language-(\w+)/.exec(className || '');
+                            const language = match ? match[1] : '';
+                            // @ts-ignore
+                            const isInline = props.inline;
 
-                              if (language === 'mermaid') {
-                                  return <MermaidBlock chart={String(children).replace(/\n$/, '')} theme={chartTheme} />;
-                              }
+                            if (language === 'mermaid') {
+                                return <MermaidBlock chart={String(children).replace(/\n$/, '')} theme={chartTheme} />;
+                            }
 
-                              if (!isInline && match) {
-                                return (
-                                  <SyntaxHighlighter
-                                    {...rest}
-                                    children={String(children).replace(/\n$/, '')}
-                                    style={oneDark}
-                                    language={match[1]}
-                                    PreTag="div"
-                                    customStyle={{
-                                        margin: '1.5rem 0',
-                                        borderRadius: '0.5rem',
-                                        fontSize: '0.875rem',
-                                        lineHeight: '1.5',
-                                        boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
-                                    }}
-                                  />
-                                );
-                              }
-
-                              return isInline ? (
-                                  <code className="bg-slate-100 text-pink-600 px-1.5 py-0.5 rounded text-sm font-mono border border-slate-200 break-words" {...rest}>
-                                      {children}
-                                  </code>
-                              ) : (
-                                  // Fallback for code blocks without language specified
-                                  <div className="bg-slate-800 rounded-lg p-4 my-4 overflow-x-auto shadow-sm">
-                                      <code className="text-slate-50 text-sm font-mono leading-relaxed block whitespace-pre" {...rest}>
-                                          {children}
-                                      </code>
-                                  </div>
+                            if (!isInline && match) {
+                              return (
+                                <SyntaxHighlighter
+                                  {...rest}
+                                  children={String(children).replace(/\n$/, '')}
+                                  style={oneDark}
+                                  language={match[1]}
+                                  PreTag="div"
+                                  customStyle={{
+                                      margin: '1.5rem 0',
+                                      borderRadius: '0.5rem',
+                                      fontSize: '0.875rem',
+                                      lineHeight: '1.5',
+                                      boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
+                                  }}
+                                />
                               );
-                          },
-                          blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-indigo-500 bg-indigo-50 pl-4 py-2 my-4 italic text-slate-700 rounded-r" {...props} />,
-                          hr: ({node, ...props}) => <hr className="my-8 border-slate-200" {...props} />
-                      }}
-                    >
-                      {debouncedMarkdown}
-                    </ReactMarkdown>
-                  </div>
+                            }
+
+                            return isInline ? (
+                                <code className="bg-slate-100 text-pink-600 px-1.5 py-0.5 rounded text-sm font-mono border border-slate-200 break-words" {...rest}>
+                                    {children}
+                                </code>
+                            ) : (
+                                // Fallback for code blocks without language specified
+                                <div className="bg-slate-800 rounded-lg p-4 my-4 overflow-x-auto shadow-sm">
+                                    <code className="text-slate-50 text-sm font-mono leading-relaxed block whitespace-pre" {...rest}>
+                                        {children}
+                                    </code>
+                                </div>
+                            );
+                        },
+                        blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-indigo-500 bg-indigo-50 pl-4 py-2 my-4 italic text-slate-700 rounded-r" {...props} />,
+                        hr: ({node, ...props}) => <hr className="my-8 border-slate-200" {...props} />
+                    }}
+                  >
+                    {debouncedMarkdown}
+                  </ReactMarkdown>
                 ) : (
-                  <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-4">
+                  <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-4 min-h-[50vh]">
                     <div className="w-16 h-16 border-4 border-slate-200 border-dashed rounded-xl flex items-center justify-center">
                       <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />

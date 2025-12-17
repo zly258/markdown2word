@@ -1,6 +1,8 @@
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, BorderStyle, WidthType, AlignmentType, ImageRun, ShadingType, Math as DocxMath, MathRun, MathFraction, MathSum, MathIntegral, MathRadical, MathLimitLower, MathSuperScript, MathSubScript, MathSubSuperScript } from 'docx';
 import saveAs from 'file-saver';
 import mermaid from 'mermaid';
+import katex from 'katex'; // Import katex for server-side/image rendering
+import html2canvas from 'html2canvas';
 import { parseMarkdownToSections } from '../utils/markdownParser';
 import { ContentType } from '../types';
 
@@ -14,11 +16,10 @@ mermaid.initialize({
 // Types for options
 interface ExportOptions {
     chartTheme: 'default' | 'neutral' | 'forest' | 'base';
-    mathMode: 'native' | 'image';
+    mathMode: 'editable' | 'image';
 }
 
-// Map LaTeX commands to Unicode/Word symbols
-// Word math often prefers the unicode char itself for variables
+// Map LaTeX commands to Unicode/Word symbols (Used for Editable Mode)
 const LATEX_MAP: Record<string, string> = {
     'theta': 'θ', 'alpha': 'α', 'beta': 'β', 'gamma': 'γ', 'delta': 'δ', 'epsilon': 'ε',
     'lambda': 'λ', 'mu': 'μ', 'pi': 'π', 'rho': 'ρ', 'sigma': 'σ', 'tau': 'τ', 'phi': 'φ',
@@ -42,13 +43,14 @@ const LATEX_MAP: Record<string, string> = {
     '[': '[',
     ']': ']',
     '{': '{',
-    '}': '}'
+    '}': '}',
+    '/': '/'
 };
 
-// --- Latex Parser Logic ---
+// --- Latex Parser Logic (Editable Mode) ---
 
 type MathNode = 
-    | { type: 'text', val: string, style?: 'plain' | 'italic' } // style plain = upright (for functions/numbers)
+    | { type: 'text', val: string, style?: 'plain' | 'italic' } 
     | { type: 'cmd', val: string }
     | { type: 'group', children: MathNode[] }
     | { type: 'fraction', num: MathNode[], den: MathNode[] }
@@ -58,26 +60,21 @@ type MathNode =
     | { type: 'accent', accent: string, children: MathNode[] }
     | { type: 'script', base: MathNode[], sub?: MathNode[], sup?: MathNode[] };
 
-/**
- * A robust tokenizer/parser for standard scientific LaTeX.
- */
 const parseLatexToStructure = (latex: string): MathNode[] => {
     let cursor = 0;
     const n = latex.length;
 
     const readGroup = (): MathNode[] => {
-        // Skip '{'
         cursor++;
         const nodes: MathNode[] = [];
         while (cursor < n && latex[cursor] !== '}') {
             nodes.push(...parseNext());
         }
-        cursor++; // Skip '}'
+        cursor++; 
         return nodes;
     };
 
     const readOptionalGroup = (): MathNode[] | undefined => {
-        // Look ahead for '['
         let tempCursor = cursor;
         while(tempCursor < n && /\s/.test(latex[tempCursor])) tempCursor++;
         
@@ -87,7 +84,7 @@ const parseLatexToStructure = (latex: string): MathNode[] => {
             while (cursor < n && latex[cursor] !== ']') {
                 nodes.push(...parseNext());
             }
-            cursor++; // Skip ']'
+            cursor++;
             return nodes;
         }
         return undefined;
@@ -97,12 +94,10 @@ const parseLatexToStructure = (latex: string): MathNode[] => {
         if (cursor >= n) return [];
         const char = latex[cursor];
 
-        // 1. Groups
         if (char === '{') {
             return [{ type: 'group', children: readGroup() }];
         }
         
-        // 2. Commands
         if (char === '\\') {
             cursor++;
             let cmd = '';
@@ -110,28 +105,22 @@ const parseLatexToStructure = (latex: string): MathNode[] => {
                 cmd += latex[cursor];
                 cursor++;
             }
-            // Handle special single-char commands or escaped chars
             if (cmd === '' && cursor < n) {
                 cmd = latex[cursor];
                 cursor++;
             }
             
-            // Ignore \left and \right (Word math handles resizing automatically)
             if (cmd === 'left' || cmd === 'right') {
                 return []; 
             }
             
-            // Spacing
             if (cmd === ',' || cmd === ';' || cmd === ' ' || cmd === 'quad') {
                 return [{ type: 'text', val: ' ', style: 'plain' }];
             }
 
-            // Fractions
             if (cmd === 'frac') {
                 let num: MathNode[] = [];
                 let den: MathNode[] = [];
-                
-                // Eat whitespace
                 while(cursor < n && /\s/.test(latex[cursor])) cursor++;
                 if (latex[cursor] === '{') num = readGroup();
                 else num = parseNext();
@@ -143,7 +132,6 @@ const parseLatexToStructure = (latex: string): MathNode[] => {
                 return [{ type: 'fraction', num, den }];
             }
 
-            // Square Root
             if (cmd === 'sqrt') {
                 const deg = readOptionalGroup();
                 let content: MathNode[] = [];
@@ -154,7 +142,6 @@ const parseLatexToStructure = (latex: string): MathNode[] => {
                 return [{ type: 'radical', deg, children: content }];
             }
 
-            // Accents
             if (['vec', 'bar', 'hat', 'dot', 'ddot'].includes(cmd)) {
                  let content: MathNode[] = [];
                  while(cursor < n && /\s/.test(latex[cursor])) cursor++;
@@ -163,7 +150,6 @@ const parseLatexToStructure = (latex: string): MathNode[] => {
                  return [{ type: 'accent', accent: cmd, children: content }];
             }
 
-            // N-ary
             if (cmd === 'sum' || cmd === 'prod') {
                 return [{ type: 'sum', isIntegral: false }]; 
             }
@@ -171,53 +157,47 @@ const parseLatexToStructure = (latex: string): MathNode[] => {
                 return [{ type: 'sum', isIntegral: true }];
             }
 
-            // Limits
             if (cmd === 'lim') {
                  return [{ type: 'limit', base: 'lim', sub: [] }]; 
             }
 
-            // Functions - Render as plain text (non-italic)
-            // Added more common functions
             if (['log', 'sin', 'cos', 'tan', 'ln', 'max', 'min', 'exp', 'lim', 'det', 'sup', 'inf'].includes(cmd)) {
                 return [{ type: 'text', val: cmd, style: 'plain' }];
             }
 
-            // Text
             if (cmd === 'text') {
                  let content: MathNode[] = [];
                  while(cursor < n && /\s/.test(latex[cursor])) cursor++;
                  if (latex[cursor] === '{') content = readGroup();
-                 // Flatten the group into a single string if possible
                  const textStr = content.map(c => c.type === 'text' ? c.val : '').join('');
                  return [{ type: 'text', val: textStr, style: 'plain' }];
+            }
+
+            if (LATEX_MAP[cmd]) {
+                return [{ type: 'text', val: LATEX_MAP[cmd], style: 'plain' }];
             }
 
             return [{ type: 'cmd', val: cmd }];
         }
 
-        // 3. Sub/Superscripts
         if (char === '^' || char === '_') {
             cursor++;
             return [{ type: 'text', val: char }];
         }
 
-        // 4. Special Characters (Pipes, Semicolons, etc)
         if (Object.keys(LATEX_MAP).includes(char)) {
             cursor++;
-            return [{ type: 'text', val: char, style: 'plain' }];
+            return [{ type: 'text', val: LATEX_MAP[char], style: 'plain' }];
         }
 
-        // 5. Whitespace
         if (/\s/.test(char)) {
             cursor++;
             return [];
         }
 
-        // 6. Digits (Group them! This fixes the spacing issue)
         if (/[0-9.]/.test(char)) {
              let val = char;
              cursor++;
-             // Consume subsequent digits/dots
              while (cursor < n && /[0-9.]/.test(latex[cursor])) {
                  val += latex[cursor];
                  cursor++;
@@ -225,9 +205,7 @@ const parseLatexToStructure = (latex: string): MathNode[] => {
              return [{ type: 'text', val: val, style: 'plain' }];
         }
 
-        // 7. Basic Text (Letters)
         cursor++;
-        // Letters are italic variables by default in math
         return [{ type: 'text', val: char, style: 'italic' }];
     };
 
@@ -238,14 +216,12 @@ const parseLatexToStructure = (latex: string): MathNode[] => {
     return nodes;
 };
 
-// Post-process to handle Subscripts, Superscripts, and Limits
 const buildMathTree = (nodes: MathNode[]): MathNode[] => {
     const result: MathNode[] = [];
     
     for (let i = 0; i < nodes.length; i++) {
         const current = nodes[i];
         
-        // Handle Limits special case: \lim_{x \to 0}
         if (current.type === 'limit') {
              const next = nodes[i + 1];
              if (next && next.type === 'text' && next.val === '_') {
@@ -260,12 +236,10 @@ const buildMathTree = (nodes: MathNode[]): MathNode[] => {
                      continue;
                  }
              }
-             // If no subscript, treat as text
              result.push({ type: 'text', val: current.base, style: 'plain' });
              continue;
         }
 
-        // Check if next is sub or sup
         const next = nodes[i + 1];
         
         if (next && next.type === 'text' && (next.val === '_' || next.val === '^')) {
@@ -277,16 +251,13 @@ const buildMathTree = (nodes: MathNode[]): MathNode[] => {
                 continue;
             }
 
-            // Consume first script
             let sub: MathNode[] | undefined = isSub ? flattenNode(scriptContent) : undefined;
             let sup: MathNode[] | undefined = !isSub ? flattenNode(scriptContent) : undefined;
-            let advance = 2; // consumed _ and content
+            let advance = 2; 
 
-            // Check for second script (e.g. \sum_{i=1}^N)
             const nextNext = nodes[i + 3];
             if (nextNext && nextNext.type === 'text' && (nextNext.val === '^' || nextNext.val === '_')) {
                  const secondIsSub = nextNext.val === '_';
-                 // Ensure we don't have two subs or two sups
                  if (secondIsSub !== isSub) {
                      const secondContent = nodes[i + 4];
                      if (secondContent) {
@@ -326,7 +297,6 @@ const flattenNode = (node: MathNode): MathNode[] => {
     return [node];
 };
 
-// Helper: Ensure children array is not empty to prevent corruption
 const ensureChildren = (children: any[]) => {
     if (!children || children.length === 0) {
         return [new MathRun(" ")];
@@ -334,15 +304,11 @@ const ensureChildren = (children: any[]) => {
     return children;
 };
 
-// Convert internal MathNodes to Docx objects
 const renderToDocxMath = (nodes: MathNode[]): any[] => {
     const output: any[] = [];
     
     for (const node of nodes) {
         if (node.type === 'text') {
-            // FIX: Invalid casting of MathRun config caused corruption.
-            // Using standard constructor with string value. 
-            // docx JS library defaults to standard formatting.
             output.push(new MathRun(node.val));
         }
         else if (node.type === 'cmd') {
@@ -375,7 +341,7 @@ const renderToDocxMath = (nodes: MathNode[]): any[] => {
                 output.push(new MathIntegral({
                     subScript: node.sub ? ensureChildren(renderToDocxMath(node.sub)) : undefined,
                     superScript: node.sup ? ensureChildren(renderToDocxMath(node.sup)) : undefined,
-                    children: [new MathRun("")], // Integral needs a placeholder or the content
+                    children: [new MathRun("")], 
                 }));
             } else {
                 output.push(new MathSum({
@@ -413,7 +379,6 @@ const convertLatexToDocxMath = (latex: string) => {
         const rawNodes = parseLatexToStructure(latex);
         const structuredNodes = buildMathTree(rawNodes);
         const docxNodes = renderToDocxMath(structuredNodes);
-        // Safety: Ensure the math block isn't empty
         if (docxNodes.length === 0) return [new MathRun(latex)];
         return docxNodes;
     } catch (e) {
@@ -422,7 +387,7 @@ const convertLatexToDocxMath = (latex: string) => {
     }
 };
 
-// --- Helper Functions for Images ---
+// --- Image Generator Helpers ---
 
 const getImageDimensions = (buffer: ArrayBuffer): Promise<{width: number, height: number}> => {
     return new Promise((resolve) => {
@@ -440,17 +405,46 @@ const getImageDimensions = (buffer: ArrayBuffer): Promise<{width: number, height
     });
 };
 
+// Generate Math Image using HTML2Canvas on a hidden rendered element
 const generateMathImage = async (latex: string): Promise<ArrayBuffer | null> => {
+    const div = document.createElement('div');
+    // Ensure styles to match document look but black text for print
+    div.style.position = 'absolute';
+    div.style.left = '-9999px';
+    div.style.top = '-9999px';
+    div.style.display = 'inline-block'; // Compact fit
+    div.style.fontSize = '32px'; // High res
+    div.style.padding = '10px';
+    div.style.color = '#000';
+    div.style.background = '#fff';
+    document.body.appendChild(div);
+
     try {
-        // High DPI request
-        const url = `https://latex.codecogs.com/png.image?\\dpi{300}\\bg{white} ${encodeURIComponent(latex)}`;
-        const response = await fetch(url);
-        if (!response.ok) return null;
-        const blob = await response.blob();
-        return await blob.arrayBuffer();
+        katex.render(latex, div, {
+            throwOnError: false,
+            displayMode: true
+        });
+
+        const canvas = await html2canvas(div, {
+            backgroundColor: null,
+            scale: 2 // 2x Retina scale for crisp print
+        });
+
+        return new Promise((resolve) => {
+            canvas.toBlob((blob) => {
+                if (blob) {
+                    blob.arrayBuffer().then(resolve);
+                } else {
+                    resolve(null);
+                }
+            }, 'image/png');
+        });
+
     } catch (e) {
-        console.error("Math Image Generation Failed:", e);
+        console.error("Failed to generate math image", e);
         return null;
+    } finally {
+        document.body.removeChild(div);
     }
 };
 
@@ -458,7 +452,7 @@ const generateMermaidImage = async (code: string, theme: string): Promise<ArrayB
     try {
         mermaid.initialize({
             startOnLoad: false,
-            theme: theme, 
+            theme: theme as any, 
             securityLevel: 'loose',
         });
 
@@ -472,7 +466,8 @@ const generateMermaidImage = async (code: string, theme: string): Promise<ArrayB
             
             img.onload = () => {
                 const canvas = document.createElement('canvas');
-                const scale = 2.5; 
+                // Increased scale for better resolution in Word
+                const scale = 3.0; 
                 canvas.width = img.width * scale;
                 canvas.height = img.height * scale;
                 const ctx = canvas.getContext('2d');
@@ -517,26 +512,25 @@ const parseParagraphContent = async (
             const cleanMath = part.replace(/^\$|\$$/g, '');
             
             if (options.mathMode === 'image') {
-                const imageBuffer = await generateMathImage(cleanMath);
-                if (imageBuffer) {
-                    const { width, height } = await getImageDimensions(imageBuffer);
-                    const targetHeight = 14; 
-                    const targetWidth = width * (targetHeight / height);
-
-                    children.push(new ImageRun({
+                 // Inline math image
+                 const imageBuffer = await generateMathImage(cleanMath);
+                 if (imageBuffer) {
+                     const { width, height } = await getImageDimensions(imageBuffer);
+                     // Scale down for inline flow
+                     const scale = 0.4;
+                     children.push(new ImageRun({
                         data: new Uint8Array(imageBuffer),
-                        transformation: { width: targetWidth, height: targetHeight },
+                        transformation: { width: width * scale, height: height * scale },
                         type: "png"
-                    }));
-                } else {
-                    const mathChildren = convertLatexToDocxMath(cleanMath);
-                    children.push(new DocxMath({ children: mathChildren }));
-                }
+                     }));
+                 } else {
+                     children.push(new TextRun({ text: `[Formula: ${cleanMath}]`, color: "FF0000" }));
+                 }
             } else {
+                // Native editable math
                 const mathChildren = convertLatexToDocxMath(cleanMath);
                 children.push(new DocxMath({ children: mathChildren }));
             }
-
         } else {
             const boldParts = part.split(/(\*\*[^*]+\*\*)/g);
             for (const bPart of boldParts) {
@@ -571,7 +565,6 @@ const parseParagraphContent = async (
     return children;
 };
 
-// Helper to map numeric level to Docx HeadingLevel
 const getHeadingLevel = (level: number) => {
     switch(level) {
         case 1: return HeadingLevel.HEADING_1;
@@ -587,7 +580,7 @@ const getHeadingLevel = (level: number) => {
 export const exportToDocx = async (
     markdown: string, 
     filename: string = 'document', 
-    options: ExportOptions = { chartTheme: 'default', mathMode: 'native' }
+    options: ExportOptions = { chartTheme: 'default', mathMode: 'editable' }
 ) => {
   const sections = parseMarkdownToSections(markdown);
   const docChildren: (Paragraph | Table)[] = [];
@@ -619,13 +612,18 @@ export const exportToDocx = async (
                     const MAX_WIDTH = 600; 
                     let finalWidth = width;
                     let finalHeight = height;
-                    if (width > MAX_WIDTH) {
-                        const ratio = MAX_WIDTH / width;
+                    
+                    const displayWidth = width / 3.0;
+                    const displayHeight = height / 3.0;
+                    
+                    if (displayWidth > MAX_WIDTH) {
+                        const ratio = MAX_WIDTH / displayWidth;
                         finalWidth = MAX_WIDTH;
-                        finalHeight = height * ratio;
+                        finalHeight = displayHeight * ratio;
+                    } else {
+                        finalWidth = displayWidth;
+                        finalHeight = displayHeight;
                     }
-                    if (!finalWidth) finalWidth = 400;
-                    if (!finalHeight) finalHeight = 300;
 
                     docChildren.push(new Paragraph({
                         children: [
@@ -652,43 +650,30 @@ export const exportToDocx = async (
                  const latex = block.content.replace(/^\$\$|\$\$$/g, '').trim();
                  
                  if (options.mathMode === 'image') {
-                    const imageBuffer = await generateMathImage(latex);
-                    if (imageBuffer) {
-                        const { width, height } = await getImageDimensions(imageBuffer);
-                        
-                        // Scale Down High-DPI Image
-                        const SCALE_FACTOR = 0.24; 
-                        
-                        const MAX_WIDTH = 450;
-                        let finalWidth = width * SCALE_FACTOR;
-                        let finalHeight = height * SCALE_FACTOR;
-                        
-                        if (finalWidth > MAX_WIDTH) {
-                            const ratio = MAX_WIDTH / finalWidth;
-                            finalWidth = MAX_WIDTH;
-                            finalHeight = finalHeight * ratio;
-                        }
-
-                        docChildren.push(new Paragraph({
-                            children: [
-                                new ImageRun({
-                                    data: new Uint8Array(imageBuffer),
-                                    transformation: { width: finalWidth, height: finalHeight },
-                                    type: "png"
-                                })
-                            ],
-                            alignment: AlignmentType.CENTER,
-                            spacing: { after: 200 }
-                        }));
-                    } else {
-                        const mathChildren = convertLatexToDocxMath(latex);
-                        docChildren.push(new Paragraph({
-                            children: [new DocxMath({ children: mathChildren })],
-                            alignment: AlignmentType.CENTER,
-                            spacing: { after: 200 }
-                        }));
-                    }
+                     // Block math image
+                     const imageBuffer = await generateMathImage(latex);
+                     if (imageBuffer) {
+                         const { width, height } = await getImageDimensions(imageBuffer);
+                         const scale = 0.5; // Scale for document
+                         docChildren.push(new Paragraph({
+                             children: [
+                                 new ImageRun({
+                                     data: new Uint8Array(imageBuffer),
+                                     transformation: { width: width * scale, height: height * scale },
+                                     type: "png"
+                                 })
+                             ],
+                             alignment: AlignmentType.CENTER,
+                             spacing: { after: 200 }
+                         }));
+                     } else {
+                         docChildren.push(new Paragraph({
+                            children: [ new TextRun({ text: `[Formula Error: ${latex}]`, color: "FF0000" }) ],
+                            alignment: AlignmentType.CENTER
+                         }));
+                     }
                  } else {
+                     // Block math native
                      const mathChildren = convertLatexToDocxMath(latex);
                      docChildren.push(new Paragraph({
                          children: [new DocxMath({ children: mathChildren })],
@@ -699,7 +684,6 @@ export const exportToDocx = async (
                  continue;
             }
 
-            // FIX: Handle code block newlines correctly using 'break: 1'
             const codeLines = block.content.split('\n');
             const codeRuns = codeLines.map((line, index) => 
                 new TextRun({
@@ -707,7 +691,7 @@ export const exportToDocx = async (
                     font: "Courier New",
                     size: 20,
                     color: "333333",
-                    break: index > 0 ? 1 : 0 // Insert break before lines after the first
+                    break: index > 0 ? 1 : 0 
                 })
             );
 
@@ -717,7 +701,7 @@ export const exportToDocx = async (
                     shading: { type: ShadingType.CLEAR, fill: "F5F5F5" },
                     border: { left: { style: BorderStyle.SINGLE, size: 6, space: 4, color: "CCCCCC" } },
                     spacing: { before: 100, after: 100 },
-                    alignment: AlignmentType.LEFT // FORCE LEFT ALIGNMENT FOR CODE BLOCKS
+                    alignment: AlignmentType.LEFT
                 })
             );
         }
@@ -787,34 +771,22 @@ export const exportToDocx = async (
                      const imageBuffer = await generateMathImage(latex);
                      if (imageBuffer) {
                          const { width, height } = await getImageDimensions(imageBuffer);
-                         
-                         const SCALE_FACTOR = 0.24; 
-                         const MAX_WIDTH = 450;
-                         let finalWidth = width * SCALE_FACTOR;
-                         let finalHeight = height * SCALE_FACTOR;
-                         if (finalWidth > MAX_WIDTH) {
-                            const ratio = MAX_WIDTH / finalWidth;
-                            finalWidth = MAX_WIDTH;
-                            finalHeight = finalHeight * ratio;
-                         }
-
+                         const scale = 0.5; 
                          docChildren.push(new Paragraph({
-                            children: [
-                                new ImageRun({
-                                    data: new Uint8Array(imageBuffer),
-                                    transformation: { width: finalWidth, height: finalHeight },
-                                    type: "png"
-                                })
-                            ],
-                            alignment: AlignmentType.CENTER,
-                            spacing: { after: 120 }
+                             children: [
+                                 new ImageRun({
+                                     data: new Uint8Array(imageBuffer),
+                                     transformation: { width: width * scale, height: height * scale },
+                                     type: "png"
+                                 })
+                             ],
+                             alignment: AlignmentType.CENTER,
+                             spacing: { after: 120 }
                          }));
                      } else {
-                         const mathChildren = convertLatexToDocxMath(latex);
                          docChildren.push(new Paragraph({
-                            children: [new DocxMath({ children: mathChildren })],
-                            alignment: AlignmentType.CENTER,
-                            spacing: { after: 120 }
+                            children: [ new TextRun({ text: "[Formula Error]", color: "FF0000" }) ],
+                            alignment: AlignmentType.CENTER
                          }));
                      }
                  } else {

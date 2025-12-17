@@ -1,0 +1,36 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 
+   既然改为全屏标签页打开，就不再强制最小尺寸，
+   而是确保 html/body 占满屏幕
+*/
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden; /* 应用内部自行管理滚动 */
+}
+
+/* Custom scrollbar for better aesthetics */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+/* Editor styles */
+.editor-textarea {
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+}
+/* KaTeX adjustments */
+.katex { font-size: 1.1em; cursor: context-menu; }
