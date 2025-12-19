@@ -1,33 +1,26 @@
 {
   "name": "markdown2word",
   "version": "1.0.0",
-  "description": "AI Markdown to Word/PDF Converter",
+  "description": "AI Markdown to Word Converter",
   "author": "Markdown2Word Team",
-  "main": "electron/main.cjs",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview",
-    "electron:dev": "concurrently \"vite\" \"wait-on tcp:5173 && electron .\"",
-    "build:exe": "tsc && vite build && electron-builder"
+    "preview": "vite preview"
   },
   "dependencies": {
-    "@google/genai": "^1.33.0",
     "docx": "^8.5.0",
     "file-saver": "^2.0.5",
-    "html2canvas": "^1.4.1",
-    "html2pdf.js": "^0.10.1",
-    "katex": "^0.16.9",
     "lucide-react": "^0.344.0",
     "mermaid": "^10.9.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-markdown": "^9.0.1",
-    "react-syntax-highlighter": "^15.5.0",
-    "rehype-katex": "^7.0.0",
     "remark-gfm": "^4.0.0",
-    "remark-math": "^6.0.0"
+    "remark-math": "^6.0.0",
+    "remark-parse": "^11.0.0",
+    "unified": "^11.0.4",
+    "vditor": "^3.11.2"
   },
   "devDependencies": {
     "@tailwindcss/typography": "^0.5.10",
@@ -38,33 +31,9 @@
     "@types/react-syntax-highlighter": "^15.5.11",
     "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.18",
-    "concurrently": "^8.2.2",
-    "electron": "^29.1.0",
-    "electron-builder": "^24.13.3",
     "postcss": "^8.4.35",
     "tailwindcss": "^3.4.1",
     "typescript": "^5.3.3",
-    "vite": "^5.1.4",
-    "wait-on": "^7.2.0"
-  },
-  "build": {
-    "appId": "com.markdown2word.app",
-    "productName": "Markdown2Word",
-    "directories": {
-      "output": "dist_electron"
-    },
-    "files": [
-      "dist/**/*",
-      "electron/**/*"
-    ],
-    "win": {
-      "target": "nsis"
-    },
-    "mac": {
-      "target": "dmg"
-    },
-    "linux": {
-      "target": "AppImage"
-    }
+    "vite": "^5.1.4"
   }
 }

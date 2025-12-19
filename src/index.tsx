@@ -2,11 +2,10 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
-import 'katex/dist/katex.min.css'; // Import KaTeX styles locally
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
-  throw new Error("Could not find root element to mount to");
+  throw new Error("找不到要挂载的根元素");
 }
 
 const root = ReactDOM.createRoot(rootElement);

@@ -1,12 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { exportToDocx } from '../services/exportService';
-import { FileWordIcon, LoadingSpinner } from './Icon';
-// @ts-ignore
+import { exportToDocx } from '../utils/exportService';
+import { FileWordIcon, LoadingSpinner, CopyIcon, CheckIcon } from './Icon';
 
 // 图表主题类型
 export type ChartTheme = 'default' | 'neutral' | 'forest' | 'base';
-// 数学公式模式类型（固定为mathml）
-export type MathMode = 'mathml';
 
 // 导出按钮属性接口
 interface ExportButtonsProps {
@@ -14,13 +11,12 @@ interface ExportButtonsProps {
   disabled: boolean;
   chartTheme: ChartTheme;
   setChartTheme: (theme: ChartTheme) => void;
-  previewId: string; // 预览内容的DOM元素ID
 }
 
-const ExportButtons: React.FC<ExportButtonsProps> = ({ markdown, disabled, chartTheme, setChartTheme, previewId }) => {
+const ExportButtons: React.FC<ExportButtonsProps> = ({ markdown, disabled, chartTheme, setChartTheme }) => {
   const [isExporting, setIsExporting] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [mathMode, setMathMode] = useState<MathMode>('mathml'); // 数学公式模式状态（固定为mathml）
+  const [copied, setCopied] = useState(false);
   const settingsRef = useRef<HTMLDivElement>(null);
 
   // 处理点击外部区域关闭设置面板
@@ -34,6 +30,20 @@ const ExportButtons: React.FC<ExportButtonsProps> = ({ markdown, disabled, chart
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // 处理复制功能
+  const handleCopy = async () => {
+    if (!markdown) return;
+    try {
+      // 导出或复制时，自动将 \$ 恢复为 $
+      const processedMarkdown = markdown.replace(/\\(\$)/g, '$1');
+      await navigator.clipboard.writeText(processedMarkdown);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('复制失败:', err);
+    }
+  };
+
   // 处理Word导出
   const handleExportWord = async () => {
     if (!markdown) return;
@@ -43,8 +53,7 @@ const ExportButtons: React.FC<ExportButtonsProps> = ({ markdown, disabled, chart
       const timestamp = new Date().toISOString().slice(0, 10);
       await new Promise(resolve => setTimeout(resolve, 100)); 
       await exportToDocx(markdown, `document-${timestamp}`, {
-          chartTheme,
-          mathMode // 传递用户选择（固定为mathml）
+          chartTheme
       });
     } catch (e) {
       console.error("导出失败", e);
@@ -56,12 +65,36 @@ const ExportButtons: React.FC<ExportButtonsProps> = ({ markdown, disabled, chart
 
   return (
     <div className="flex items-center gap-2 relative">
+      {/* 复制按钮 */}
+      <button
+        onClick={handleCopy}
+        disabled={disabled || !markdown}
+        className={`flex items-center gap-2 px-3 py-2 rounded-md transition-all font-medium text-sm whitespace-nowrap border ${
+          copied 
+            ? 'bg-green-50 text-green-600 border-green-200' 
+            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+        }`}
+        title="复制 Markdown 内容"
+      >
+        {copied ? (
+          <>
+            <CheckIcon className="w-4 h-4" />
+            <span>已复制</span>
+          </>
+        ) : (
+          <>
+            <CopyIcon className="w-4 h-4" />
+            <span>复制</span>
+          </>
+        )}
+      </button>
+
       {/* 设置按钮 */}
       <div className="relative" ref={settingsRef}>
         <button
             onClick={() => setShowSettings(!showSettings)}
             disabled={disabled || isExporting}
-            className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-slate-100 rounded-md transition disabled:opacity-50"
+            className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-slate-100 rounded-md transition disabled:opacity-50 border border-transparent hover:border-slate-200"
             title="导出设置"
         >
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -74,20 +107,6 @@ const ExportButtons: React.FC<ExportButtonsProps> = ({ markdown, disabled, chart
             <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-lg shadow-xl border border-slate-200 p-4 z-50">
                 <h3 className="text-sm font-bold text-slate-800 mb-3">导出设置</h3>
                 
-                <div className="mb-4">
-                    <label className="block text-xs font-medium text-slate-500 mb-1">Word 公式格式</label>
-                    <div className="flex bg-slate-100 p-1 rounded-md">
-                        <button 
-                            className={`flex-1 py-1 text-xs rounded transition bg-white shadow text-indigo-600 font-medium`}
-                        >
-                            MathML (推荐)
-                        </button>
-                    </div>
-                    <p className="text-[10px] text-slate-400 mt-1">
-                        使用MathML格式，兼容性更好
-                    </p>
-                </div>
-
                 <div className="mb-4">
                     <label className="block text-xs font-medium text-slate-500 mb-1">Mermaid 图表风格</label>
                     <select 
@@ -109,7 +128,7 @@ const ExportButtons: React.FC<ExportButtonsProps> = ({ markdown, disabled, chart
       <button
         onClick={handleExportWord}
         disabled={disabled || isExporting}
-        className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md shadow-sm hover:shadow transition-all disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm whitespace-nowrap"
+        className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md shadow-sm hover:shadow transition-all disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm whitespace-nowrap"
       >
         {isExporting ? (
           <>
@@ -119,7 +138,7 @@ const ExportButtons: React.FC<ExportButtonsProps> = ({ markdown, disabled, chart
         ) : (
           <>
             <FileWordIcon className="w-4 h-4" />
-            <span>导出 Word</span>
+            <span>导出</span>
           </>
         )}
       </button>

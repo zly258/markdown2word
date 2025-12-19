@@ -3,11 +3,11 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-  base: './', // Use relative paths for Electron and Extension compatibility
+  base: './', // 使用相对路径以兼容 Electron 和浏览器扩展
   build: {
     outDir: 'dist',
     emptyOutDir: true,
-    chunkSizeWarningLimit: 1000, // Increase limit to 1000kB to suppress warnings for desktop app
+    chunkSizeWarningLimit: 1000, // 将限制提高到 1000kB 以抑制桌面应用的警告
   },
   server: {
     port: 5173

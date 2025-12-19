@@ -1,66 +1,27 @@
-import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, BorderStyle, WidthType, AlignmentType, ImageRun, ShadingType, Math as DocxMath } from 'docx';
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, BorderStyle, WidthType, AlignmentType, ImageRun, ShadingType } from 'docx';
 import saveAs from 'file-saver';
 import mermaid from 'mermaid';
-import katex from 'katex';
 
-// 移除了html2canvas导入，因为已删除PDF导出功能
-import { parseMarkdownToSections } from '../utils/markdownParser';
-import { ContentType } from '../types';
+import { parseMarkdownToSections } from './markdownParser';
+import { ContentType } from './types';
 
-// 初始化mermaid用于无头渲染
+// 初始化 mermaid 用于无头渲染图表
 mermaid.initialize({
     startOnLoad: false,
     theme: 'default',
     securityLevel: 'loose',
 });
 
-// 导出选项类型
+// 导出选项接口
 interface ExportOptions {
     chartTheme: 'default' | 'neutral' | 'forest' | 'base';
-    mathMode: 'mathml'; // 固定为mathml模式
 }
 
-// 将LaTeX转换为MathML的函数
-const convertLatexToMathML = (latex: string): string => {
-    try {
-        // 使用KaTeX将LaTeX转换为MathML
-        const mathML = katex.renderToString(latex, {
-            displayMode: true,
-            output: "mathml"
-        });
-        return mathML;
-    } catch (error) {
-        console.error('LaTeX to MathML conversion error:', error);
-        // 如果转换失败，返回原始LaTeX作为后备
-        return `<math xmlns="http://www.w3.org/1998/Math/MathML" display="block">
-          <semantics>
-            <mrow>
-              <mi mathvariant="normal">LaTeX</mi>
-              <mo>:</mo>
-              <mi>${latex}</mi>
-            </mrow>
-            <annotation encoding="application/x-tex">${latex}</annotation>
-          </semantics>
-        </math>`;
-    }
-};
-
-// 将MathML字符串转换为docx.Math对象
-const convertMathMLToDocxMath = (mathML: string): DocxMath => {
-    // 在实际应用中，您可能需要解析MathML并将其转换为docx库支持的格式
-    // 目前我们只是创建一个占位符
-    return new DocxMath({
-        children: [
-            new TextRun({
-                text: `[MathML公式: ${mathML.substring(0, 30)}...]`,
-                color: "0000FF",
-                italics: true
-            })
-        ]
-    });
-};
-
-// 生成Mermaid图表图片
+/**
+ * 生成 Mermaid 图表的图片 ArrayBuffer
+ * @param code Mermaid 源码
+ * @param theme 主题
+ */
 const generateMermaidImage = async (code: string, theme: string): Promise<ArrayBuffer | null> => {
     try {
         mermaid.initialize({
@@ -79,8 +40,8 @@ const generateMermaidImage = async (code: string, theme: string): Promise<ArrayB
             
             img.onload = () => {
                 const canvas = document.createElement('canvas');
-                // 优化图片大小：使用更合适的缩放比例
-                const scale = 2.0; // 降低缩放比例以减小文件大小
+                // 缩放比例，平衡清晰度与文件大小
+                const scale = 2.0; 
                 canvas.width = img.width * scale;
                 canvas.height = img.height * scale;
                 const ctx = canvas.getContext('2d');
@@ -96,7 +57,7 @@ const generateMermaidImage = async (code: string, theme: string): Promise<ArrayB
                         } else {
                             resolve(null);
                         }
-                    }, 'image/png', 0.8); // 添加质量参数以进一步减小文件大小
+                    }, 'image/png', 0.8);
                 } else {
                     resolve(null);
                 }
@@ -104,12 +65,14 @@ const generateMermaidImage = async (code: string, theme: string): Promise<ArrayB
             img.onerror = () => resolve(null);
         });
     } catch (e) {
-        console.error("Mermaid渲染错误:", e);
+        console.error("Mermaid 渲染错误:", e);
         return null;
     }
 };
 
-// 获取图片尺寸
+/**
+ * 获取图片的原始尺寸
+ */
 const getImageDimensions = (buffer: ArrayBuffer): Promise<{width: number, height: number}> => {
     return new Promise((resolve) => {
         const blob = new Blob([buffer]);
@@ -126,61 +89,51 @@ const getImageDimensions = (buffer: ArrayBuffer): Promise<{width: number, height
     });
 };
 
-// 解析段落内容
+/**
+ * 解析包含粗体和斜体的文本段落
+ */
 const parseParagraphContent = async (
     text: string, 
     options: ExportOptions,
     defaults: { bold?: boolean, size?: number } = {}
-): Promise<(TextRun | ImageRun | DocxMath)[]> => {
-    const children: (TextRun | ImageRun | DocxMath)[] = [];
+): Promise<(TextRun | ImageRun)[]> => {
+    const children: (TextRun | ImageRun)[] = [];
     
-    // 按数学标记分割：$...$ (行内数学)
-    const regex = /(\$[^$]+\$)/g;
-    const parts = text.split(regex);
-    
-    for (const part of parts) {
-        if (part.startsWith('$') && part.endsWith('$')) {
-            const cleanMath = part.replace(/^\$|\$$/g, '');
-            
-            // 使用MathML格式导出公式
-            const mathML = convertLatexToMathML(cleanMath);
-            const docxMath = convertMathMLToDocxMath(mathML);
-            children.push(docxMath);
+    // 解析 Markdown 格式的段落内容（支持 **粗体** 和 *斜体*）
+    const boldParts = text.split(/(\*\*[^*]+\*\*)/g);
+    for (const bPart of boldParts) {
+        if (bPart.startsWith('**') && bPart.endsWith('**')) {
+            children.push(new TextRun({
+                text: bPart.slice(2, -2),
+                bold: true,
+                size: defaults.size || 24 
+            }));
         } else {
-            const boldParts = part.split(/(\*\*[^*]+\*\*)/g);
-            for (const bPart of boldParts) {
-                if (bPart.startsWith('**') && bPart.endsWith('**')) {
-                    children.push(new TextRun({
-                        text: bPart.slice(2, -2),
-                        bold: true,
-                        size: defaults.size || 24 
+             const italicParts = bPart.split(/(\*[^*]+\*)/g);
+             for (const iPart of italicParts) {
+                if (iPart.startsWith('*') && iPart.endsWith('*') && iPart.length > 2) {
+                     children.push(new TextRun({
+                        text: iPart.slice(1, -1),
+                        italics: true,
+                        bold: defaults.bold,
+                        size: defaults.size || 24
                     }));
-                } else {
-                     const italicParts = bPart.split(/(\*[^*]+\*)/g);
-                     for (const iPart of italicParts) {
-                        if (iPart.startsWith('*') && iPart.endsWith('*') && iPart.length > 2) {
-                             children.push(new TextRun({
-                                text: iPart.slice(1, -1),
-                                italics: true,
-                                bold: defaults.bold,
-                                size: defaults.size || 24
-                            }));
-                        } else if (iPart) {
-                            children.push(new TextRun({
-                                text: iPart,
-                                bold: defaults.bold,
-                                size: defaults.size || 24
-                            }));
-                        }
-                     }
+                } else if (iPart) {
+                    children.push(new TextRun({
+                        text: iPart,
+                        bold: defaults.bold,
+                        size: defaults.size || 24
+                    }));
                 }
-            }
+             }
         }
     }
     return children;
 };
 
-// 获取标题级别
+/**
+ * 转换数字标题级别为 docx 对应的枚举
+ */
 const getHeadingLevel = (level: number) => {
     switch(level) {
         case 1: return HeadingLevel.HEADING_1;
@@ -193,23 +146,31 @@ const getHeadingLevel = (level: number) => {
     }
 };
 
+/**
+ * 核心导出函数：将 Markdown 导出为 Word 文档
+ * @param markdown Markdown 源码
+ * @param filename 导出的文件名
+ * @param options 导出配置
+ */
 export const exportToDocx = async (
     markdown: string, 
     filename: string = 'document', 
-    options: ExportOptions = { chartTheme: 'default', mathMode: 'mathml' }
+    options: ExportOptions = { chartTheme: 'default' }
 ) => {
   const sections = parseMarkdownToSections(markdown);
   const docChildren: (Paragraph | Table)[] = [];
 
+  // 添加文档标题
   docChildren.push(
     new Paragraph({
-      text: "AI 生成文档",
+      text: "Markdown2Word 生成文档",
       heading: HeadingLevel.TITLE,
       spacing: { after: 400 }
     })
   );
 
   for (const section of sections) {
+    // 添加章节标题
     docChildren.push(
       new Paragraph({
         text: section.title,
@@ -218,19 +179,20 @@ export const exportToDocx = async (
       })
     );
 
+    // 遍历章节下的内容块
     for (const block of section.blocks) {
         if (block.type === ContentType.CODE_BLOCK) {
-            
+            // 特殊处理 Mermaid 图表
             if (block.language === 'mermaid') {
                 const imageBuffer = await generateMermaidImage(block.content, options.chartTheme);
                 if (imageBuffer) {
                     const { width, height } = await getImageDimensions(imageBuffer);
-                    const MAX_WIDTH = 500; 
+                    const MAX_WIDTH = 600; 
                     let finalWidth = width;
                     let finalHeight = height;
                     
-                    const displayWidth = width / 2.0;
-                    const displayHeight = height / 2.0;
+                    const displayWidth = width / 1.5;
+                    const displayHeight = height / 1.5;
                     
                     if (displayWidth > MAX_WIDTH) {
                         const ratio = MAX_WIDTH / displayWidth;
@@ -245,7 +207,7 @@ export const exportToDocx = async (
                         children: [
                             new ImageRun({
                                 data: new Uint8Array(imageBuffer),
-                                transformation: { width: finalWidth, height: finalHeight }
+                                transformation: { width: finalWidth, height: finalHeight },
                             }),
                         ],
                         alignment: AlignmentType.CENTER,
@@ -260,21 +222,7 @@ export const exportToDocx = async (
                 continue;
             }
 
-            const isMathBlock = block.content.trim().startsWith('$$') && block.content.trim().endsWith('$$');
-            if (isMathBlock || block.language === 'latex' || block.language === 'math') {
-                 const latex = block.content.replace(/^\$\$|\$\$$/g, '').trim();
-                 
-                 // 使用MathML格式导出公式
-                 const mathML = convertLatexToMathML(latex);
-                 const docxMath = convertMathMLToDocxMath(mathML);
-                 docChildren.push(new Paragraph({
-                     children: [docxMath],
-                     alignment: AlignmentType.CENTER,
-                     spacing: { after: 200 }
-                 }));
-                 continue;
-            }
-
+            // 普通代码块处理
             const codeLines = block.content.split('\n');
             const codeRuns = codeLines.map((line, index) => 
                 new TextRun({
@@ -297,6 +245,7 @@ export const exportToDocx = async (
             );
         }
         else if (block.type === ContentType.TABLE && block.tableData) {
+            // 表格处理
             const { headers, rows } = block.tableData;
             
             const headerCells: TableCell[] = [];
@@ -345,6 +294,7 @@ export const exportToDocx = async (
             docChildren.push(new Paragraph(""));
         }
         else if (block.type === ContentType.LIST_ITEM) {
+            // 列表项处理
             const children = await parseParagraphContent(block.content, options);
             docChildren.push(
                 new Paragraph({
@@ -354,70 +304,48 @@ export const exportToDocx = async (
                 })
             );
         }
-        // 添加对引用块的支持
         else if (block.type === ContentType.BLOCKQUOTE) {
+            // 引用块处理
             const children = await parseParagraphContent(block.content, options);
             docChildren.push(
                 new Paragraph({
                   children: children,
                   spacing: { after: 80 },
-                  indent: { left: 400 }, // 缩进表示引用
-                  shading: { fill: "F0F0F0" } // 浅灰色背景
+                  indent: { left: 400 },
+                  shading: { fill: "F0F0F0" }
                 })
             );
         }
-        // 添加对水平线的支持
         else if (block.type === ContentType.HR) {
+            // 水平线处理
             docChildren.push(
                 new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: "",
-                      break: 1
-                    })
-                  ],
+                  children: [ new TextRun({ text: "", break: 1 }) ],
                   spacing: { after: 200 },
                   border: {
-                    bottom: {
-                      style: BorderStyle.SINGLE,
-                      size: 6,
-                      space: 1,
-                      color: "CCCCCC"
-                    }
+                    bottom: { style: BorderStyle.SINGLE, size: 6, space: 1, color: "CCCCCC" }
                   }
                 })
             );
         }
         else {
-             if (block.content.trim().startsWith('$$') && block.content.trim().endsWith('$$')) {
-                 const latex = block.content.replace(/^\$\$|\$\$$/g, '').trim();
-                 
-                 // 使用MathML格式导出公式
-                 const mathML = convertLatexToMathML(latex);
-                 const docxMath = convertMathMLToDocxMath(mathML);
-                 docChildren.push(new Paragraph({
-                     children: [docxMath],
-                     alignment: AlignmentType.CENTER,
-                     spacing: { after: 120 }
-                 }));
-
-             } else {
-                 const children = await parseParagraphContent(block.content, options);
-                 docChildren.push(
-                    new Paragraph({
-                      children: children,
-                      spacing: { after: 120 },
-                      alignment: AlignmentType.JUSTIFIED
-                    })
-                  );
-             }
+            // 普通段落处理
+            const children = await parseParagraphContent(block.content, options);
+            docChildren.push(
+                new Paragraph({
+                    children: children,
+                    spacing: { after: 120 },
+                    alignment: AlignmentType.JUSTIFIED
+                })
+            );
         }
     }
   }
 
+  // 构建文档对象
   const doc = new Document({
     creator: "Markdown2Word",
-    title: "Exported Document",
+    title: "导出文档",
     styles: {
         default: {
             heading1: {
@@ -432,20 +360,8 @@ export const exportToDocx = async (
                 run: { size: 32, bold: true, color: "1E293B" },
                 paragraph: { spacing: { before: 240, after: 120 } }
             },
-            heading4: {
-                run: { size: 28, bold: true, color: "334155" },
-                paragraph: { spacing: { before: 200, after: 100 } }
-            },
-            heading5: {
-                run: { size: 24, bold: true, color: "334155" },
-                paragraph: { spacing: { before: 200, after: 100 } }
-            },
-            heading6: {
-                run: { size: 22, bold: true, italics: true, color: "475569" },
-                paragraph: { spacing: { before: 200, after: 100 } }
-            },
             document: {
-                run: { size: 24, font: "Arial" },
+                run: { size: 24, font: "Microsoft YaHei" }, // 使用微软雅黑
                 paragraph: { spacing: { line: 360 } }
             }
         }
@@ -456,6 +372,7 @@ export const exportToDocx = async (
     }],
   });
 
+  // 打包并保存文件
   const blob = await Packer.toBlob(doc);
   saveAs(blob, `${filename}.docx`);
 };

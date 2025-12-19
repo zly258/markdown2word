@@ -13,24 +13,60 @@ html, body {
   overflow: hidden; /* 应用内部自行管理滚动 */
 }
 
-/* Custom scrollbar for better aesthetics */
-::-webkit-scrollbar {
+/* 自定义滚动条样式，增强可见性 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f8fafc;
+  scroll-behavior: smooth;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
   width: 8px;
-  height: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
 }
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: #f8fafc;
 }
 ::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 4px;
+  background: #cbd5e1;
+  border-radius: 5px;
+  border: 2px solid #f8fafc;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
+  background: #94a3b8;
 }
-/* Editor styles */
+
+/* 确保 Mermaid 图表具有白色背景且可见 */
+.mermaid-container {
+  background-color: white !important;
+}
+.mermaid-container svg {
+  background-color: white !important;
+  max-width: 100%;
+}
+/* 编辑器样式 */
 .editor-textarea {
   font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
 }
-/* KaTeX adjustments */
+/* KaTeX 数学公式样式微调 */
 .katex { font-size: 1.1em; cursor: context-menu; }

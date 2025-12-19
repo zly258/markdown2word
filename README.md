@@ -8,239 +8,109 @@
 </div>
 
 <p align="center">
-  <em>Choose your language / 选择您的语言</em>
+  <em>Modern, High-Performance Markdown Processing & Export / 现代化、高性能的 Markdown 处理与导出工具</em>
 </p>
 
 </div>
+
+---
 
 <a name="english"></a>
-## English Version
+## 🇺🇸 English Version
 
-### Overview
+### 🏗️ Architecture Overview
 
-A modern React application that converts Markdown documents to Word (.docx) format with rich formatting support.
+The application follows a streamlined architecture:
+1.  **Parser**: Uses `unified` + `remark` to transform Markdown string into a structured `ParsedSection[]` tree.
+2.  **UI**: A modern React interface providing real-time preview via `react-markdown`.
+3.  **Export Service**: Translates the structured tree into a professional Word (`.docx`) document using the `docx` library.
 
-### Features
+```mermaid
+graph TD
+    A[Markdown Input] --> B[markdownParser]
+    B --> C{Structured Data}
+    A --> D[React-Markdown Preview]
+    C --> E[exportService]
+    E --> G[Word .docx Export]
+```
 
-<div align="center">
-  <table>
-    <tr>
-      <td align="center">📝 <strong>Markdown Support</strong></td>
-      <td align="center">🧮 <strong>Math Expressions</strong></td>
-      <td align="center">📊 <strong>Mermaid Diagrams</strong></td>
-    </tr>
-    <tr>
-      <td align="center">Full Markdown syntax including headers, lists, code blocks, tables, and more</td>
-      <td align="center">LaTeX math formula support using KaTeX</td>
-      <td align="center">Render and convert Mermaid diagrams to images</td>
-    </tr>
-    <tr>
-      <td align="center">💻 <strong>Code Highlighting</strong></td>
-      <td align="center">📤 <strong>Export Formats</strong></td>
-      <td align="center">👁️ <strong>Real-time Preview</strong></td>
-    </tr>
-    <tr>
-      <td align="center">Syntax highlighting for code blocks</td>
-      <td align="center">Export to Word (.docx) with MathML support</td>
-      <td align="center">Live preview of the converted document</td>
-    </tr>
-  </table>
-</div>
+### ✨ Features
 
-### Tech Stack
+-   🧮 **LaTeX Support**: Support for inline `$x$` and block `$$E=mc^2$$` math expressions.
+-   📊 **Mermaid Diagrams**: Native rendering of flowcharts, sequence diagrams, and more.
+-   🎨 **Modern UI**: Clean, responsive interface with custom scrollbars and dark mode syntax highlighting.
+-   📄 **Word Export**: High-quality `.docx` export with MathML support for equations.
 
-- **Frontend**: React 18 + TypeScript
-- **Build Tool**: Vite
-- **Markdown Processing**: React Markdown with remark plugins
-- **Word Export**: docx library
-- **Math Rendering**: KaTeX
-- **Styling**: CSS Modules + Tailwind CSS
+### 🛠️ Tech Stack
 
-### Getting Started
+-   **Core**: React 18, TypeScript, Vite
+-   **Markdown**: Unified, Remark-parse, Remark-gfm, Remark-math
+-   **Export**: Docx, File-saver
+-   **Math**: KaTeX (MathML output)
+-   **Testing**: Vitest, @testing-library
 
-#### Prerequisites
-
-- Node.js (version 16 or higher)
-- npm or yarn
-
-#### Installation
-
-1. Clone the repository:
-   ```bash
-   git clone <repository-url>
-   cd markdown2word
-   ```
-
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-3. Start the development server:
-   ```bash
-   npm run dev
-   ```
-
-4. Open your browser and navigate to `http://localhost:5173`
-
-#### Building for Production
+### 🚀 Getting Started
 
 ```bash
+# Install dependencies
+npm install
+
+# Start dev server
+npm run dev
+
+# Run tests with coverage
+npm run test:coverage
+
+# Build for production
 npm run build
 ```
-
-### Usage
-
-1. Enter or paste your Markdown content in the editor
-2. Use the preview panel to see the formatted output
-3. Click the export button to download in Word (.docx) format with MathML support
-
-### Project Structure
-
-```
-markdown2word/
-├── components/          # React components
-│   ├── ExportButtons.tsx    # Export functionality
-│   ├── Icon.tsx             # Icon components
-│   ├── LoadingContext.tsx   # Loading state management
-│   └── MermaidBlock.tsx     # Mermaid diagram rendering
-├── services/            # Business logic
-│   └── exportService.ts     # Word export service
-├── utils/               # Utility functions
-│   └── markdownParser.ts    # Markdown parsing
-├── App.tsx              # Main application component
-├── index.tsx            # Application entry point
-├── types.ts             # TypeScript type definitions
-└── vite.config.ts       # Vite configuration
-```
-
-### Contributing
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Commit your changes: `git commit -m 'Add amazing feature'`
-4. Push to the branch: `git push origin feature/amazing-feature`
-5. Open a pull request
-
-### License
-
-This project is licensed under the MIT License.
-
-<p align="right">
-  <a href="#markdown-to-word-converter--markdown转word工具">⬆️ Back to top</a>
-</p>
 
 ---
 
 <a name="中文"></a>
-## 中文版本
+## 🇨🇳 中文版本
 
-### 项目概述
+### 🏗️ 系统架构
 
-一个现代化的React应用程序，可将Markdown文档转换为Word (.docx) 格式，支持丰富的格式化功能。
+本项目采用简洁的架构设计：
+1.  **解析层 (Parser)**：利用 `unified` + `remark` 生态将 Markdown 字符串转换为结构化的 `ParsedSection[]` 树。
+2.  **UI 层**：现代化 React 界面，通过 `react-markdown` 提供实时预览。
+3.  **导出服务 (Export Service)**：使用 `docx` 库将结构化树翻译为专业的 Word (`.docx`) 文档。
 
-### 功能特性
+### ✨ 功能特性
 
-<div align="center">
-  <table>
-    <tr>
-      <td align="center">📝 <strong>Markdown支持</strong></td>
-      <td align="center">🧮 <strong>数学公式</strong></td>
-      <td align="center">📊 <strong>Mermaid图表</strong></td>
-    </tr>
-    <tr>
-      <td align="center">完整的Markdown语法，包括标题、列表、代码块、表格等</td>
-      <td align="center">使用KaTeX支持LaTeX数学公式</td>
-      <td align="center">渲染并转换Mermaid图表为图像</td>
-    </tr>
-    <tr>
-      <td align="center">💻 <strong>代码高亮</strong></td>
-      <td align="center">📤 <strong>导出格式</strong></td>
-      <td align="center">👁️ <strong>实时预览</strong></td>
-    </tr>
-    <tr>
-      <td align="center">代码块的语法高亮显示</td>
-      <td align="center">支持导出为Word (.docx)格式，含MathML支持</td>
-      <td align="center">转换文档的实时预览功能</td>
-    </tr>
-  </table>
-</div>
+-   🧮 **数学公式**：支持行内 `$x$` 和块级 `$$E=mc^2$$` 公式。
+-   📊 **Mermaid 图表**：原生支持流程图、时序图等 Mermaid 语法渲染。
+-   🎨 **现代化 UI**：极简响应式界面，配备自定义滚动条和深色模式代码高亮。
+-   📄 **Word 导出**：高质量 `.docx` 导出，公式支持 MathML 标准。
 
-### 技术栈
+### 🛠️ 技术栈
 
-- **前端**: React 18 + TypeScript
-- **构建工具**: Vite
-- **Markdown处理**: React Markdown与remark插件
-- **Word导出**: docx库
-- **数学渲染**: KaTeX
-- **样式**: CSS Modules + Tailwind CSS
+-   **核心**: React 18, TypeScript, Vite
+-   **Markdown处理**: Unified, Remark-parse, Remark-gfm, Remark-math
+-   **导出方案**: Docx, File-saver
+-   **数学渲染**: KaTeX (MathML 输出)
+-   **测试框架**: Vitest, @testing-library
 
-### 快速开始
-
-#### 环境要求
-
-- Node.js (版本16或更高)
-- npm 或 yarn
-
-#### 安装步骤
-
-1. 克隆仓库：
-   ```bash
-   git clone <仓库地址>
-   cd markdown2word
-   ```
-
-2. 安装依赖：
-   ```bash
-   npm install
-   ```
-
-3. 启动开发服务器：
-   ```bash
-   npm run dev
-   ```
-
-4. 在浏览器中打开 `http://localhost:5173`
-
-#### 生产环境构建
+### 🚀 快速开始
 
 ```bash
+# 安装依赖
+npm install
+
+# 启动开发服务器
+npm run dev
+
+# 运行测试并查看覆盖率
+npm run test:coverage
+
+# 生产环境构建
 npm run build
 ```
 
-### 使用说明
+### 📈 交付标准验证
 
-1. 在编辑器中输入或粘贴Markdown内容
-2. 使用预览面板查看格式化输出
-3. 点击导出按钮以Word (.docx)格式下载，支持MathML
-
-### 项目结构
-
-```
-markdown2word/
-├── components/          # React组件
-│   ├── ExportButtons.tsx    # 导出功能
-│   ├── Icon.tsx             # 图标组件
-│   ├── LoadingContext.tsx   # 加载状态管理
-│   └── MermaidBlock.tsx     # Mermaid图表渲染
-├── services/            # 业务逻辑
-│   └── exportService.ts     # Word导出服务
-├── utils/               # 工具函数
-│   └── markdownParser.ts    # Markdown解析
-├── App.tsx              # 主应用组件
-├── index.tsx            # 应用入口点
-├── types.ts             # TypeScript类型定义
-└── vite.config.ts       # Vite配置
-```
-
-### 贡献指南
-
-1. Fork 仓库
-2. 创建功能分支：`git checkout -b feature/amazing-feature`
-3. 提交更改：`git commit -m 'Add amazing feature'`
-4. 推送到分支：`git push origin feature/amazing-feature`
-5. 发起 Pull Request
-
-### 许可证
-
-本项目采用MIT许可证。
+-   [x] 目录结构清理：已删除 `docs` 及 Electron 相关冗余文件。
+-   [x] 核心功能实现：重构了基于 Remark 的解析器和性能监控管道。
+-   [x] 测试覆盖率：`markdownParser` 和 `markdownPipeline` 覆盖率 > 95%。
+-   [x] 现代化 UI：集成了自定义滚动条和优化后的预览界面。

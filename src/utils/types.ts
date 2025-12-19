@@ -1,9 +1,7 @@
 // 文档类型枚举
 export enum DocType {
   MARKDOWN = 'markdown',
-  DOCX = 'docx',
-  PPTX = 'pptx',
-  XLSX = 'xlsx'
+  DOCX = 'docx'
 }
 
 // 解析后的表格接口
