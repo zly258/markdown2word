@@ -2,19 +2,19 @@ import React, { useEffect, useState, useRef } from 'react';
 import mermaid from 'mermaid';
 import { useLoading } from './LoadingContext';
 
+// MermaidBlock组件属性接口
 interface MermaidBlockProps {
   chart: string;
   theme: string;
 }
 
-// Global initialization to avoid repeated calls
+// 全局初始化以避免重复调用
 const initMermaid = (theme: string) => {
   mermaid.initialize({
     startOnLoad: false,
     theme: theme as any,
     securityLevel: 'loose',
     fontFamily: 'sans-serif',
-    // suppressErrorRendering removed to fix TS error
   });
 };
 
@@ -25,20 +25,22 @@ const MermaidBlock: React.FC<MermaidBlockProps> = ({ chart, theme }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const currentThemeRef = useRef(theme);
 
+  // 主题变化时重新初始化
   useEffect(() => {
-    // Only re-init if theme changes
+    // 仅在主题变化时重新初始化
     if (currentThemeRef.current !== theme) {
        initMermaid(theme);
        currentThemeRef.current = theme;
     } else if (!svg) {
-        // Init on first load if needed
+        // 首次加载时初始化
         initMermaid(theme);
     }
   }, [theme, svg]);
 
+  // 渲染图表
   useEffect(() => {
     let isMounted = true;
-    addLoading(); // Signal start
+    addLoading(); // 开始信号
 
     const renderChart = async () => {
       if (!chart) {
@@ -50,7 +52,7 @@ const MermaidBlock: React.FC<MermaidBlockProps> = ({ chart, theme }) => {
         if (isMounted) setError(null);
 
         const id = `mermaid-${Math.random().toString(36).substr(2, 9)}`;
-        // Use mermaid.render which is async
+        // 使用异步的mermaid.render
         const { svg: svgContent } = await mermaid.render(id, chart);
         
         if (isMounted) {
@@ -58,7 +60,7 @@ const MermaidBlock: React.FC<MermaidBlockProps> = ({ chart, theme }) => {
           setError(null);
         }
       } catch (err: any) {
-        console.error("Mermaid render error:", err);
+        console.error("Mermaid渲染错误:", err);
         if (isMounted) {
           let msg = "图表渲染失败";
           if (err?.message) {
@@ -72,7 +74,7 @@ const MermaidBlock: React.FC<MermaidBlockProps> = ({ chart, theme }) => {
         }
       } finally {
           if (isMounted) {
-              removeLoading(); // Signal end
+              removeLoading(); // 结束信号
           }
       }
     };
@@ -82,11 +84,12 @@ const MermaidBlock: React.FC<MermaidBlockProps> = ({ chart, theme }) => {
     return () => {
       if (isMounted) {
           isMounted = false;
-          removeLoading(); // Ensure cleanup if unmounted mid-render
+          removeLoading(); // 确保在卸载时清理
       }
     };
   }, [chart, theme, addLoading, removeLoading]);
 
+  // 错误显示
   if (error) {
     return (
         <div className="p-4 bg-red-50 border border-red-100 rounded-lg my-4 flex flex-col gap-2">
@@ -98,7 +101,7 @@ const MermaidBlock: React.FC<MermaidBlockProps> = ({ chart, theme }) => {
     );
   }
 
-  // Use min-height to reduce layout shift before SVG loads
+  // 使用最小高度以减少SVG加载前的布局偏移
   return (
     <div 
       ref={containerRef}

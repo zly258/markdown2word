@@ -20,12 +20,6 @@
 
 A modern React application that converts Markdown documents to Word (.docx) format with rich formatting support.
 
-<div align="center">
-  <img src="images/preview.png" alt="Markdown to Word Converter Preview" width="800" />
-  <br/>
-  <em>Application Interface Preview</em>
-</div>
-
 ### Features
 
 <div align="center">
@@ -47,7 +41,7 @@ A modern React application that converts Markdown documents to Word (.docx) form
     </tr>
     <tr>
       <td align="center">Syntax highlighting for code blocks</td>
-      <td align="center">Export to Word (.docx), PDF, and HTML</td>
+      <td align="center">Export to Word (.docx) with MathML support</td>
       <td align="center">Live preview of the converted document</td>
     </tr>
   </table>
@@ -55,12 +49,12 @@ A modern React application that converts Markdown documents to Word (.docx) form
 
 ### Tech Stack
 
-- **Frontend**: React 19 + TypeScript
+- **Frontend**: React 18 + TypeScript
 - **Build Tool**: Vite
 - **Markdown Processing**: React Markdown with remark plugins
 - **Word Export**: docx library
-- **PDF Export**: jsPDF + html2canvas
-- **Styling**: CSS Modules
+- **Math Rendering**: KaTeX
+- **Styling**: CSS Modules + Tailwind CSS
 
 ### Getting Started
 
@@ -99,10 +93,7 @@ npm run build
 
 1. Enter or paste your Markdown content in the editor
 2. Use the preview panel to see the formatted output
-3. Click the export buttons to download in your preferred format:
-   - **Word (.docx)**: Full formatting preservation
-   - **PDF**: Print-ready document
-   - **HTML**: Web-friendly format
+3. Click the export button to download in Word (.docx) format with MathML support
 
 ### Project Structure
 
@@ -113,6 +104,10 @@ markdown2word/
 │   ├── Icon.tsx             # Icon components
 │   ├── LoadingContext.tsx   # Loading state management
 │   └── MermaidBlock.tsx     # Mermaid diagram rendering
+├── services/            # Business logic
+│   └── exportService.ts     # Word export service
+├── utils/               # Utility functions
+│   └── markdownParser.ts    # Markdown parsing
 ├── App.tsx              # Main application component
 ├── index.tsx            # Application entry point
 ├── types.ts             # TypeScript type definitions
@@ -144,12 +139,6 @@ This project is licensed under the MIT License.
 
 一个现代化的React应用程序，可将Markdown文档转换为Word (.docx) 格式，支持丰富的格式化功能。
 
-<div align="center">
-  <img src="images/preview.png" alt="Markdown转Word工具预览" width="800" />
-  <br/>
-  <em>应用界面预览</em>
-</div>
-
 ### 功能特性
 
 <div align="center">
@@ -171,7 +160,7 @@ This project is licensed under the MIT License.
     </tr>
     <tr>
       <td align="center">代码块的语法高亮显示</td>
-      <td align="center">支持导出为Word (.docx)、PDF和HTML</td>
+      <td align="center">支持导出为Word (.docx)格式，含MathML支持</td>
       <td align="center">转换文档的实时预览功能</td>
     </tr>
   </table>
@@ -179,12 +168,12 @@ This project is licensed under the MIT License.
 
 ### 技术栈
 
-- **前端**: React 19 + TypeScript
+- **前端**: React 18 + TypeScript
 - **构建工具**: Vite
 - **Markdown处理**: React Markdown与remark插件
 - **Word导出**: docx库
-- **PDF导出**: jsPDF + html2canvas
-- **样式**: CSS Modules
+- **数学渲染**: KaTeX
+- **样式**: CSS Modules + Tailwind CSS
 
 ### 快速开始
 
@@ -211,7 +200,7 @@ This project is licensed under the MIT License.
    npm run dev
    ```
 
-4. 打开浏览器访问 `http://localhost:5173`
+4. 在浏览器中打开 `http://localhost:5173`
 
 #### 生产环境构建
 
@@ -219,14 +208,11 @@ This project is licensed under the MIT License.
 npm run build
 ```
 
-### 使用方法
+### 使用说明
 
 1. 在编辑器中输入或粘贴Markdown内容
 2. 使用预览面板查看格式化输出
-3. 点击导出按钮下载所需格式：
-   - **Word (.docx)**: 完整格式保留
-   - **PDF**: 打印就绪文档
-   - **HTML**: 网页友好格式
+3. 点击导出按钮以Word (.docx)格式下载，支持MathML
 
 ### 项目结构
 
@@ -237,6 +223,10 @@ markdown2word/
 │   ├── Icon.tsx             # 图标组件
 │   ├── LoadingContext.tsx   # 加载状态管理
 │   └── MermaidBlock.tsx     # Mermaid图表渲染
+├── services/            # 业务逻辑
+│   └── exportService.ts     # Word导出服务
+├── utils/               # 工具函数
+│   └── markdownParser.ts    # Markdown解析
 ├── App.tsx              # 主应用组件
 ├── index.tsx            # 应用入口点
 ├── types.ts             # TypeScript类型定义
@@ -245,16 +235,12 @@ markdown2word/
 
 ### 贡献指南
 
-1. Fork 本仓库
-2. 创建功能分支：`git checkout -b feature/新功能`
-3. 提交更改：`git commit -m '添加新功能'`
-4. 推送分支：`git push origin feature/新功能`
-5. 提交 Pull Request
+1. Fork 仓库
+2. 创建功能分支：`git checkout -b feature/amazing-feature`
+3. 提交更改：`git commit -m 'Add amazing feature'`
+4. 推送到分支：`git push origin feature/amazing-feature`
+5. 发起 Pull Request
 
 ### 许可证
 
-本项目采用 MIT 许可证。
-
-<p align="right">
-  <a href="#markdown-to-word-converter--markdown转word工具">⬆️ 返回顶部</a>
-</p>
+本项目采用MIT许可证。
