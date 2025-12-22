@@ -17,6 +17,26 @@ interface ExportOptions {
     chartTheme: 'default' | 'neutral' | 'forest' | 'base';
 }
 
+const mermaidImageCache = new Map<string, ArrayBuffer>();
+
+const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T | null> => {
+    return new Promise((resolve) => {
+        let finished = false;
+        const timer = setTimeout(() => {
+            if (!finished) resolve(null);
+        }, ms);
+        promise.then((v) => {
+            finished = true;
+            clearTimeout(timer);
+            resolve(v);
+        }).catch(() => {
+            finished = true;
+            clearTimeout(timer);
+            resolve(null);
+        });
+    });
+};
+
 /**
  * 生成 Mermaid 图表的图片 ArrayBuffer
  * @param code Mermaid 源码
@@ -24,6 +44,10 @@ interface ExportOptions {
  */
 const generateMermaidImage = async (code: string, theme: string): Promise<ArrayBuffer | null> => {
     try {
+        const cacheKey = `${theme}|${code}`;
+        const cached = mermaidImageCache.get(cacheKey);
+        if (cached) return cached;
+
         mermaid.initialize({
             startOnLoad: false,
             theme: theme as any, 
@@ -31,16 +55,24 @@ const generateMermaidImage = async (code: string, theme: string): Promise<ArrayB
         });
 
         const id = `mermaid-export-${Math.random().toString(36).substr(2, 9)}`;
-        const { svg } = await mermaid.render(id, code);
+        const renderResult = await withTimeout(mermaid.render(id, code), 4000);
+        if (!renderResult) return null;
+        const { svg } = renderResult as { svg: string };
 
-        return new Promise((resolve) => {
+        const rendered: ArrayBuffer | null = await new Promise((resolve) => {
             const img = new Image();
             const svg64 = btoa(unescape(encodeURIComponent(svg)));
             img.src = `data:image/svg+xml;base64,${svg64}`;
             
             img.onload = () => {
                 const canvas = document.createElement('canvas');
-                const scale = 5.0; 
+                // 根据图复杂度动态调整缩放，避免大图卡顿
+                const nodeMatches = (code.match(/[A-Za-z0-9_]+\s*\[/g) || []).length;
+                const edgeMatches = (code.match(/-->|==>|--|==/g) || []).length;
+                const complexity = nodeMatches + edgeMatches;
+                let scale = 4.0;
+                if (complexity > 60) scale = 2.2;
+                else if (complexity > 30) scale = 2.8;
                 canvas.width = img.width * scale;
                 canvas.height = img.height * scale;
                 const ctx = canvas.getContext('2d');
@@ -56,13 +88,18 @@ const generateMermaidImage = async (code: string, theme: string): Promise<ArrayB
                         } else {
                             resolve(null);
                         }
-                    }, 'image/png', 0.8);
+                    }, 'image/png', 0.9);
                 } else {
                     resolve(null);
                 }
             };
             img.onerror = () => resolve(null);
+            setTimeout(() => resolve(null), 4000);
         });
+        if (rendered) {
+            mermaidImageCache.set(cacheKey, rendered);
+        }
+        return rendered;
     } catch (e) {
         console.error("Mermaid 渲染错误:", e);
         return null;
@@ -76,15 +113,32 @@ const getImageDimensions = (buffer: ArrayBuffer): Promise<{width: number, height
     return new Promise((resolve) => {
         const blob = new Blob([buffer]);
         const img = new Image();
+        let revoked = false;
+        const url = URL.createObjectURL(blob);
+        const timer = setTimeout(() => {
+            if (!revoked) {
+                URL.revokeObjectURL(url);
+                revoked = true;
+            }
+            resolve({ width: 0, height: 0 });
+        }, 2000);
         img.onload = () => {
-            URL.revokeObjectURL(img.src);
+            clearTimeout(timer);
+            if (!revoked) {
+                URL.revokeObjectURL(url);
+                revoked = true;
+            }
             resolve({ width: img.naturalWidth, height: img.naturalHeight });
         };
         img.onerror = () => {
-            URL.revokeObjectURL(img.src);
+            clearTimeout(timer);
+            if (!revoked) {
+                URL.revokeObjectURL(url);
+                revoked = true;
+            }
             resolve({ width: 0, height: 0 });
         };
-        img.src = URL.createObjectURL(blob);
+        img.src = url;
     });
 };
 
@@ -308,8 +362,8 @@ export const exportToDocx = async (
                 if (imageBuffer) {
                     const { width, height } = await getImageDimensions(imageBuffer);
                     const MAX_WIDTH = 800; 
-                    let baseWidth = width / 5.0;
-                    let baseHeight = height / 5.0;
+                    let baseWidth = width > 0 ? width / 5.0 : 640;
+                    let baseHeight = height > 0 ? height / 5.0 : 360;
                     let finalWidth = baseWidth * 1.6;
                     let finalHeight = baseHeight * 1.6;
                     if (finalWidth > MAX_WIDTH) {
@@ -330,7 +384,7 @@ export const exportToDocx = async (
                     }));
                 } else {
                      docChildren.push(new Paragraph({
-                        children: [ new TextRun({ text: "[图表生成失败]", color: "FF0000" }) ],
+                        children: [ new TextRun({ text: "[图表生成失败或超时]", color: "FF0000" }) ],
                         alignment: AlignmentType.CENTER
                     }));
                 }

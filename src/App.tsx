@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Vditor from 'vditor';
 import 'vditor/dist/index.css';
-import ExportButtons, { ChartTheme } from './components/ExportButtons';
+import ExportButtons from './components/ExportButtons';
 import { SparklesIcon } from './components/Icon';
 
 const App: React.FC = () => {
@@ -19,7 +19,6 @@ const App: React.FC = () => {
     const saved = localStorage.getItem('markdown_content') || '# Markdown 转 Word 转换器\n\n在此输入内容...';
     return cleanMathText(saved);
   });
-  const [chartTheme, setChartTheme] = useState<ChartTheme>('default');
   const [vditor, setVditor] = useState<Vditor>();
   const vditorRef = useRef<HTMLDivElement>(null);
 
@@ -88,16 +87,16 @@ const App: React.FC = () => {
     };
   }, []);
 
-  // 当主题变化时更新编辑器配置
-  useEffect(() => {
-    if (vditor) {
-      vditor.setTheme('classic', 'light', chartTheme === 'default' ? 'default' : chartTheme);
-    }
-  }, [chartTheme, vditor]);
-
   useEffect(() => {
     localStorage.setItem('markdown_content', markdown);
   }, [markdown]);
+
+  const handleClear = () => {
+    setMarkdown('');
+    if (vditor) {
+      vditor.setValue('');
+    }
+  };
 
   return (
     <div className="h-screen bg-white flex flex-col">
@@ -117,8 +116,7 @@ const App: React.FC = () => {
           <ExportButtons 
             markdown={markdown} 
             disabled={!vditor} 
-            chartTheme={chartTheme} 
-            setChartTheme={setChartTheme}
+            onClear={handleClear}
           />
         </div>
       </header>
