@@ -35,29 +35,15 @@ const App: React.FC = () => {
       mode: 'ir', // 即时渲染模式
       placeholder: '在此输入 Markdown 内容...',
       theme: 'classic',
-      icon: 'antDesign',
+      icon: 'ant',
       toolbarConfig: {
         hide: true,
       },
       toolbar: [], // 隐藏工具栏
       lang: 'zh_CN', // 显式指定语言
-      cdn: '/vditor', // Vite 会从 public 目录提供服务
+      // 使用默认 CDN，确保 KaTeX 资源正确加载
       cache: {
         enable: false,
-      },
-      // 处理粘贴内容中的 \$$ 或 \$ 问题
-      paste: (html: string, text: string) => {
-        if (text.includes('\\')) {
-          const processedText = cleanMathText(text);
-          vditorInstance.insertValue(processedText);
-          return '';
-        }
-        return text;
-      },
-      math: {
-        engine: 'KaTeX',
-        inlineDigit: true,
-        macros: {},
       },
       preview: {
         actions: [],
@@ -66,8 +52,10 @@ const App: React.FC = () => {
           engine: 'KaTeX',
           inlineDigit: true,
         },
-        mermaid: {
-          theme: chartTheme === 'default' ? 'default' : chartTheme,
+        markdown: {
+          codeBlockPreview: true,
+          mathBlockPreview: true,
+          sanitize: true,
         },
       },
       input: (value) => {
@@ -116,7 +104,7 @@ const App: React.FC = () => {
       {/* 顶部导航栏 */}
       <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 sticky top-0 z-10 shadow-sm">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center text-white shadow-indigo-200 shadow-lg">
+          <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center text-white shadow-blue-200 shadow-lg">
             <SparklesIcon className="w-6 h-6" />
           </div>
           <div>

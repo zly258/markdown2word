@@ -1,4 +1,4 @@
-import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, BorderStyle, WidthType, AlignmentType, ImageRun, ShadingType } from 'docx';
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, BorderStyle, WidthType, AlignmentType, ImageRun, ShadingType, Math as DocxMath, MathRun, MathFraction, MathRadical, MathSuperScript, MathSubScript } from 'docx';
 import saveAs from 'file-saver';
 import mermaid from 'mermaid';
 
@@ -40,8 +40,7 @@ const generateMermaidImage = async (code: string, theme: string): Promise<ArrayB
             
             img.onload = () => {
                 const canvas = document.createElement('canvas');
-                // 缩放比例，平衡清晰度与文件大小
-                const scale = 2.0; 
+                const scale = 5.0; 
                 canvas.width = img.width * scale;
                 canvas.height = img.height * scale;
                 const ctx = canvas.getContext('2d');
@@ -89,6 +88,119 @@ const getImageDimensions = (buffer: ArrayBuffer): Promise<{width: number, height
     });
 };
 
+const latexToComponents = (latex: string): (MathRun | MathFraction | MathRadical | MathSuperScript | MathSubScript)[] => {
+    // 预处理常见环境：pmatrix -> ( rows; ... )
+    const normalizeMatrixEnv = (input: string): string => {
+        let s = input;
+        const beginTag = '\\begin{pmatrix}';
+        const endTag = '\\end{pmatrix}';
+        let start = s.indexOf(beginTag);
+        while (start !== -1) {
+            const end = s.indexOf(endTag, start + beginTag.length);
+            if (end === -1) break;
+            const inner = s.slice(start + beginTag.length, end);
+            const rows = inner.split('\\\\').map(r => r.trim());
+            const rowStr = rows.map(r => r.split('&').map(c => c.trim()).join(', ')).join('; ');
+            const replaced = `( ${rowStr} )`;
+            s = s.slice(0, start) + replaced + s.slice(end + endTag.length);
+            start = s.indexOf(beginTag, start + replaced.length);
+        }
+        return s;
+    };
+    latex = normalizeMatrixEnv(latex);
+    const out: (MathRun | MathFraction | MathRadical | MathSuperScript | MathSubScript)[] = [];
+    let i = 0;
+    const readGroup = (): string => {
+        if (latex[i] === '{') {
+            let depth = 0;
+            let start = i;
+            while (i < latex.length) {
+                if (latex[i] === '{') depth++;
+                else if (latex[i] === '}') {
+                    depth--;
+                    if (depth === 0) { i++; break; }
+                }
+                i++;
+            }
+            return latex.slice(start + 1, i - 1);
+        } else {
+            let start = i;
+            while (i < latex.length && !['^', '_', ' ', '\\', '{', '}', '/'].includes(latex[i])) i++;
+            return latex.slice(start, i);
+        }
+    };
+    const pushRun = (text: string) => {
+        if (!text) return;
+        out.push(new MathRun(text));
+    };
+    while (i < latex.length) {
+        const ch = latex[i];
+        if (ch === '\\') {
+            const start = i;
+            i++;
+            while (i < latex.length && /[a-zA-Z]/.test(latex[i])) i++;
+            const cmd = latex.slice(start + 1, i);
+            if (cmd === 'frac') {
+                if (latex[i] === '{') {
+                    const num = readGroup();
+                    if (latex[i] === '{') {
+                        const den = readGroup();
+                        out.push(new MathFraction({ numerator: latexToComponents(num), denominator: latexToComponents(den) }));
+                    }
+                }
+            } else if (cmd === 'sqrt') {
+                if (latex[i] === '{') {
+                    const inner = readGroup();
+                    out.push(new MathRadical({ children: latexToComponents(inner) }));
+                }
+            } else if (cmd === 'alpha') pushRun('α');
+            else if (cmd === 'beta') pushRun('β');
+            else if (cmd === 'theta') pushRun('θ');
+            else if (cmd === 'omega') pushRun('ω');
+            else if (cmd === 'mu') pushRun('μ');
+            else if (cmd === 'sigma') pushRun('σ');
+            else if (cmd === 'leq') pushRun('≤');
+            else if (cmd === 'geq') pushRun('≥');
+            else if (cmd === 'neq') pushRun('≠');
+            else if (cmd === 'infty') pushRun('∞');
+            else if (cmd === 'cdot') pushRun('·');
+            else if (cmd === 'pm') pushRun('±');
+            else if (cmd === 'ldots') pushRun('…');
+            else if (cmd === 'cdots') pushRun('⋯');
+            else if (cmd === 'int') pushRun('∫');
+            else if (cmd === 'mathcal') {
+                if (latex[i] === '{') {
+                    const inner = readGroup();
+                    pushRun(inner);
+                }
+            }
+            else {
+                pushRun(cmd);
+            }
+        } else if (ch === '^') {
+            i++;
+            const sup = latex[i] === '{' ? readGroup() : readGroup();
+            const prev = out.pop();
+            const base = prev ? [prev] : [new MathRun('')];
+            out.push(new MathSuperScript({ children: base, superScript: latexToComponents(sup) }));
+        } else if (ch === '_') {
+            i++;
+            const sub = latex[i] === '{' ? readGroup() : readGroup();
+            const prev = out.pop();
+            const base = prev ? [prev] : [new MathRun('')];
+            out.push(new MathSubScript({ children: base, subScript: latexToComponents(sub) }));
+        } else if (ch === ' ') {
+            i++;
+            pushRun(' ');
+        } else {
+            let start = i;
+            while (i < latex.length && !['^', '_', ' ', '\\', '{', '}', '/'].includes(latex[i])) i++;
+            pushRun(latex.slice(start, i));
+        }
+    }
+    return out;
+};
+
 /**
  * 解析包含粗体和斜体的文本段落
  */
@@ -96,36 +208,44 @@ const parseParagraphContent = async (
     text: string, 
     options: ExportOptions,
     defaults: { bold?: boolean, size?: number } = {}
-): Promise<(TextRun | ImageRun)[]> => {
-    const children: (TextRun | ImageRun)[] = [];
-    
-    // 解析 Markdown 格式的段落内容（支持 **粗体** 和 *斜体*）
-    const boldParts = text.split(/(\*\*[^*]+\*\*)/g);
-    for (const bPart of boldParts) {
-        if (bPart.startsWith('**') && bPart.endsWith('**')) {
-            children.push(new TextRun({
-                text: bPart.slice(2, -2),
-                bold: true,
-                size: defaults.size || 24 
-            }));
+): Promise<(TextRun | ImageRun | DocxMath)[]> => {
+    const children: (TextRun | ImageRun | DocxMath)[] = [];
+    const parts = text.split(/(\$\$[\s\S]+?\$\$|\$[^$]+\$)/g);
+    for (const part of parts) {
+        if (!part) continue;
+        if ((part.startsWith('$$') && part.endsWith('$$')) || (part.startsWith('$') && part.endsWith('$'))) {
+            const inner = part.replace(/^\$\$?|\$\$?$/g, '').trim();
+            const comps = latexToComponents(inner);
+            children.push(new DocxMath({ children: comps }));
         } else {
-             const italicParts = bPart.split(/(\*[^*]+\*)/g);
-             for (const iPart of italicParts) {
-                if (iPart.startsWith('*') && iPart.endsWith('*') && iPart.length > 2) {
-                     children.push(new TextRun({
-                        text: iPart.slice(1, -1),
-                        italics: true,
-                        bold: defaults.bold,
-                        size: defaults.size || 24
-                    }));
-                } else if (iPart) {
+            const boldParts = part.split(/(\*\*[^*]+\*\*)/g);
+            for (const bPart of boldParts) {
+                if (bPart.startsWith('**') && bPart.endsWith('**')) {
                     children.push(new TextRun({
-                        text: iPart,
-                        bold: defaults.bold,
-                        size: defaults.size || 24
+                        text: bPart.slice(2, -2),
+                        bold: true,
+                        size: defaults.size || 24 
                     }));
+                } else {
+                    const italicParts = bPart.split(/(\*[^*]+\*)/g);
+                    for (const iPart of italicParts) {
+                        if (iPart.startsWith('*') && iPart.endsWith('*') && iPart.length > 2) {
+                            children.push(new TextRun({
+                                text: iPart.slice(1, -1),
+                                italics: true,
+                                bold: defaults.bold,
+                                size: defaults.size || 24
+                            }));
+                        } else if (iPart) {
+                            children.push(new TextRun({
+                                text: iPart,
+                                bold: defaults.bold,
+                                size: defaults.size || 24
+                            }));
+                        }
+                    }
                 }
-             }
+            }
         }
     }
     return children;
@@ -187,20 +307,15 @@ export const exportToDocx = async (
                 const imageBuffer = await generateMermaidImage(block.content, options.chartTheme);
                 if (imageBuffer) {
                     const { width, height } = await getImageDimensions(imageBuffer);
-                    const MAX_WIDTH = 600; 
-                    let finalWidth = width;
-                    let finalHeight = height;
-                    
-                    const displayWidth = width / 1.5;
-                    const displayHeight = height / 1.5;
-                    
-                    if (displayWidth > MAX_WIDTH) {
-                        const ratio = MAX_WIDTH / displayWidth;
+                    const MAX_WIDTH = 800; 
+                    let baseWidth = width / 5.0;
+                    let baseHeight = height / 5.0;
+                    let finalWidth = baseWidth * 1.6;
+                    let finalHeight = baseHeight * 1.6;
+                    if (finalWidth > MAX_WIDTH) {
+                        const ratio = MAX_WIDTH / finalWidth;
                         finalWidth = MAX_WIDTH;
-                        finalHeight = displayHeight * ratio;
-                    } else {
-                        finalWidth = displayWidth;
-                        finalHeight = displayHeight;
+                        finalHeight = finalHeight * ratio;
                     }
 
                     docChildren.push(new Paragraph({
@@ -211,7 +326,7 @@ export const exportToDocx = async (
                             }),
                         ],
                         alignment: AlignmentType.CENTER,
-                        spacing: { after: 200 }
+                        spacing: { before: 300, after: 300 }
                     }));
                 } else {
                      docChildren.push(new Paragraph({
@@ -222,6 +337,15 @@ export const exportToDocx = async (
                 continue;
             }
 
+            if (block.language === 'math') {
+                const comps = latexToComponents(block.content);
+                docChildren.push(new Paragraph({
+                    children: [new DocxMath({ children: comps })],
+                    alignment: AlignmentType.CENTER,
+                    spacing: { before: 240, after: 240 }
+                }));
+                continue;
+            }
             // 普通代码块处理
             const codeLines = block.content.split('\n');
             const codeRuns = codeLines.map((line, index) => 

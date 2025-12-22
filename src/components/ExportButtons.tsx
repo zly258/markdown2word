@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { exportToDocx } from '../utils/exportService';
-import { FileWordIcon, LoadingSpinner, CopyIcon, CheckIcon } from './Icon';
+import { FileWordIcon, LoadingSpinner } from './Icon';
 
 // 图表主题类型
 export type ChartTheme = 'default' | 'neutral' | 'forest' | 'base';
@@ -16,7 +16,6 @@ interface ExportButtonsProps {
 const ExportButtons: React.FC<ExportButtonsProps> = ({ markdown, disabled, chartTheme, setChartTheme }) => {
   const [isExporting, setIsExporting] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [copied, setCopied] = useState(false);
   const settingsRef = useRef<HTMLDivElement>(null);
 
   // 处理点击外部区域关闭设置面板
@@ -30,19 +29,7 @@ const ExportButtons: React.FC<ExportButtonsProps> = ({ markdown, disabled, chart
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // 处理复制功能
-  const handleCopy = async () => {
-    if (!markdown) return;
-    try {
-      // 导出或复制时，自动将 \$ 恢复为 $
-      const processedMarkdown = markdown.replace(/\\(\$)/g, '$1');
-      await navigator.clipboard.writeText(processedMarkdown);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error('复制失败:', err);
-    }
-  };
+  // 复制功能已移除
 
   // 处理Word导出
   const handleExportWord = async () => {
@@ -65,36 +52,14 @@ const ExportButtons: React.FC<ExportButtonsProps> = ({ markdown, disabled, chart
 
   return (
     <div className="flex items-center gap-2 relative">
-      {/* 复制按钮 */}
-      <button
-        onClick={handleCopy}
-        disabled={disabled || !markdown}
-        className={`flex items-center gap-2 px-3 py-2 rounded-md transition-all font-medium text-sm whitespace-nowrap border ${
-          copied 
-            ? 'bg-green-50 text-green-600 border-green-200' 
-            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-        }`}
-        title="复制 Markdown 内容"
-      >
-        {copied ? (
-          <>
-            <CheckIcon className="w-4 h-4" />
-            <span>已复制</span>
-          </>
-        ) : (
-          <>
-            <CopyIcon className="w-4 h-4" />
-            <span>复制</span>
-          </>
-        )}
-      </button>
+      
 
       {/* 设置按钮 */}
       <div className="relative" ref={settingsRef}>
         <button
             onClick={() => setShowSettings(!showSettings)}
             disabled={disabled || isExporting}
-            className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-slate-100 rounded-md transition disabled:opacity-50 border border-transparent hover:border-slate-200"
+            className="p-2 text-slate-500 hover:text-blue-600 hover:bg-slate-100 rounded-md transition disabled:opacity-50 border border-transparent hover:border-slate-200"
             title="导出设置"
         >
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -112,7 +77,7 @@ const ExportButtons: React.FC<ExportButtonsProps> = ({ markdown, disabled, chart
                     <select 
                         value={chartTheme} 
                         onChange={(e) => setChartTheme(e.target.value as ChartTheme)}
-                        className="w-full text-sm border-slate-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 p-1.5 border bg-slate-50"
+                        className="w-full text-sm border-slate-300 rounded-md focus:ring-blue-500 focus:border-blue-500 p-1.5 border bg-slate-50"
                     >
                         <option value="default">默认 (Default)</option>
                         <option value="neutral">简约 (Neutral)</option>
@@ -128,7 +93,7 @@ const ExportButtons: React.FC<ExportButtonsProps> = ({ markdown, disabled, chart
       <button
         onClick={handleExportWord}
         disabled={disabled || isExporting}
-        className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md shadow-sm hover:shadow transition-all disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm whitespace-nowrap"
+        className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md shadow-sm hover:shadow transition-all disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm whitespace-nowrap"
       >
         {isExporting ? (
           <>
